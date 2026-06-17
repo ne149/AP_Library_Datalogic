@@ -1,0 +1,49 @@
+AUDIT LOGGER - SIDSTE TILKOBLING (laeg ind i App.xaml.cs)
+==========================================================
+
+AuditLogger er nu robust: hvis CSV-filen er aaben i Excel (laast), tabes
+posten IKKE - den gemmes i en fallback-fil (audit_YYYY-MM-DD.pending.csv),
+og der kan vises en advarsel. Naar Excel lukkes, kan ventende poster flettes
+ind i hovedfilen.
+
+To smaa ting skal kobles til ved appens opstart. Aabn App.xaml.cs og find
+(eller tilfoej) OnStartup. Indsaet dette:
+
+
+protected override void OnStartup(StartupEventArgs e)
+{
+    base.OnStartup(e);
+
+    // 1) Vis en advarsel hvis audit-loggen ikke kunne skrives til hovedfilen
+    //    (posten er stadig gemt i fallback - intet tabes).
+    AuditLogger.OnWriteFailed += (msg) =>
+    {
+        // Marshall til UI-traaden (Log kan kaldes fra status-timeren).
+        Dispatcher.Invoke(() =>
+            MessageBox.Show(msg, "Audit-log advarsel",
+                            MessageBoxButton.OK, MessageBoxImage.Warning));
+    };
+
+    // 2) Flet evt. ventende poster fra tidligere (fx hvis appen koerte mens
+    //    filen var aaben i Excel) ind i hovedfilen ved start.
+    AuditLogger.MergePending();
+}
+
+
+HVIS du allerede har en OnStartup, saa tilfoej bare de to blokke indeni.
+
+HVIS App.xaml.cs ikke har "using System.Windows;" i toppen, tilfoej den.
+
+
+VALGFRIT - flet ventende poster jaevnligt
+------------------------------------------
+Advarsel-dialogen kan vaere nok. Men hvis du vil have at ventende poster
+automatisk flettes ind kort efter Excel lukkes (uden at genstarte appen),
+kan du kalde AuditLogger.MergePending() fra en timer - fx i CameraViewModel's
+status-timer (RefreshStatus), helt sidst:
+
+    AuditLogger.MergePending();
+
+Det proever en gang i sekundet at flette ventende poster ind, og goer intet
+hvis der ikke er nogen. Saa snart Excel lukkes, ryger de ventende poster
+automatisk ind i hovedfilen.

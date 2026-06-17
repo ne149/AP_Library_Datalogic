@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="GUI_Library/GUI_Library.csproj" Id="b69fe4a2-76d5-4c70-bf76-a512b2b20c97" />
+  <Project Path="SDK_GUI_Test1/SDK_GUI_Test1.csproj" Id="fac86768-1fb7-41c9-a7af-5d4b88d81a57" />
+</Solution>
