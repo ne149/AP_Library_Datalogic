@@ -1,4 +1,5 @@
 
+
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System;
@@ -13,20 +14,21 @@ using GUI_Library;
 namespace SDK_GUI_Test1
 {
     /// <summary>
-    /// EEN kamera. Egen VisionDeviceWrapper (een forbindelse).
-    /// AddOn-kontroller (PropertyTolerance, PropertyBlock, ImageViewer) binder via endpoints.
+    /// ONE camera. Its own VisionDeviceWrapper (one connection).
+    /// AddOn controls (PropertyTolerance, PropertyBlock, ImageViewer) bind via endpoints.
     ///
-    /// Logning af parameter-aendringer sker KUN ved trig (DoTrigger): vi sammenligner
-    /// nuvaerende gauge- og blob-vaerdier med dem fra sidste trig og logger forskellen
-    /// med den bruger der er logget ind. Justeringer frem/tilbage UDEN trig logges ikke -
-    /// kun den vaerdi der faktisk bruges til en inspektion har audit-vaerdi.
+    /// Logging of parameter changes happens ONLY on trigger (DoTrigger): we compare
+    /// the current gauge and blob values with the ones from the last trigger and log
+    /// the difference with the user that is logged in. Adjustments back and forth
+    /// WITHOUT a trigger are not logged - only the value that is actually used for an
+    /// inspection has audit value.
     ///
-    /// Adgang styres af rettigheder (Permission) fra den indloggede bruger:
-    ///   CanOperate     -> online/offline/trig
-    ///   CanEditGauge   -> gauge-tolerance (XAML: IsEnabled="{Binding CanEditGauge}")
-    ///   CanEditBlob    -> blob min/max     (XAML: IsEnabled="{Binding CanEditBlob}")
-    ///   CanSaveProgram -> gem program
-    ///   CanViewAudit   -> se audit-log (fremtidig visning)
+    /// Access is controlled by permissions (Permission) from the logged-in user:
+    ///   CanOperate     -> online/offline/trigger
+    ///   CanEditGauge   -> gauge tolerance (XAML: IsEnabled="{Binding CanEditGauge}")
+    ///   CanEditBlob    -> blob min/max    (XAML: IsEnabled="{Binding CanEditBlob}")
+    ///   CanSaveProgram -> save program
+    ///   CanViewAudit   -> view audit log (future display)
     /// </summary>
     public class CameraViewModel : ObservableObject, IReprocess
     {
@@ -51,21 +53,21 @@ namespace SDK_GUI_Test1
                 Device = _manager.GetVisionDevice(info);
                 Device.Connect();
 
-                // Online saa PropertyTolerance kan skrive aendringer til kameraet.
+                // Online so PropertyTolerance can write changes to the camera.
                 Device.VisionDevice?.SetOnline_Sync(true);
 
-                // Auto-reprocess: naar en AddOn-kontrol aendres -> Reprocess() kaldes
-                // -> aendring skrives og kontroller genindlaeser. UDEN dette virker
-                // PropertyTolerance-redigering ikke.
+                // Auto-reprocess: when an AddOn control changes -> Reprocess() is called
+                // -> the change is written and the controls reload. WITHOUT this,
+                // PropertyTolerance editing does not work.
                 AutoReprocess.ReprocessInstance = this;
 
                 ExternalTrigger = !ExternalTrigger;
 
-                // Baseline ved connect (udgangspunkt for foerste trig-sammenligning).
+                // Baseline on connect (starting point for the first trigger comparison).
                 _lastGauge = ReadGauge(Device.VisionDevice);
                 _lastBlob = ReadBlob(Device.VisionDevice);
             }
-            catch { /* vises som "Ikke forbundet" i status */ }
+            catch { /* shown as "Not connected" in the status */ }
 
             LoginCommand = new RelayCommand(DoLogin);
             SaveProgramCommand = new RelayCommand(DoSaveProgram);
@@ -80,7 +82,7 @@ namespace SDK_GUI_Test1
             RefreshStatus();
         }
 
-        // ===================== IDENTITET =====================
+        // ===================== IDENTITY =====================
         public string Title { get; }
         public bool IsActive { get; }
 
@@ -99,9 +101,9 @@ namespace SDK_GUI_Test1
         }
 
         // ===================== IReprocess =====================
-        // Kaldes af AddOn-frameworket naar en kontrol-vaerdi aendres af brugeren.
-        // Vi re-evaluerer NUVAERENDE billede (tager IKKE nyt) saa pass/fail opdateres.
-        // INGEN logning her - justering uden trig har ingen audit-vaerdi.
+        // Called by the AddOn framework when a control value is changed by the user.
+        // We re-evaluate the CURRENT image (do NOT take a new one) so pass/fail updates.
+        // NO logging here - an adjustment without a trigger has no audit value.
         public void Reprocess()
         {
             try
@@ -116,7 +118,7 @@ namespace SDK_GUI_Test1
             catch { }
         }
 
-        // ===================== PARAMETER-SNAPSHOT (til trig-logning) =====================
+        // ===================== PARAMETER SNAPSHOT (for trigger logging) =====================
         private class TolSnapshot
         {
             public double Nominal;
@@ -128,7 +130,7 @@ namespace SDK_GUI_Test1
         private TolSnapshot _lastGauge;
         private TolSnapshot _lastBlob;
 
-        // Gauge: kommer tilbage som VisionTolerance (Nominal/Minus/Plus) - bekraeftet.
+        // Gauge: comes back as VisionTolerance (Nominal/Minus/Plus) - confirmed.
         private TolSnapshot ReadGauge(dynamic dev)
         {
             if (dev == null) return null;
@@ -149,9 +151,9 @@ namespace SDK_GUI_Test1
             catch { return null; }
         }
 
-        // Blob "Required Number Of Blobs" er en Range 1D - laeses med GetRange1DPortValue_Sync
-        // (IKKE GetTolerancePortValue_Sync). Feltnavne er StartValue/EndValue (bekraeftet),
-        // men vi laeser defensivt via refleksion for robusthed.
+        // Blob "Required Number Of Blobs" is a Range 1D - read with GetRange1DPortValue_Sync
+        // (NOT GetTolerancePortValue_Sync). The field names are StartValue/EndValue (confirmed),
+        // but we read defensively via reflection for robustness.
         private TolSnapshot ReadBlob(dynamic dev)
         {
             if (dev == null) return null;
@@ -176,7 +178,7 @@ namespace SDK_GUI_Test1
             catch { return null; }
         }
 
-        // Henter den foerste property der findes blandt de angivne navne, som double.
+        // Gets the first property found among the given names, as a double.
         private double? GetFirstDoubleProp(object obj, params string[] names)
         {
             if (obj == null) return null;
@@ -192,12 +194,12 @@ namespace SDK_GUI_Test1
             return null;
         }
 
-        // Sammenligner to snapshots felt-for-felt og logger kun det der aendrede sig.
+        // Compares two snapshots field by field and logs only what changed.
         private void LogDiff(string tool, TolSnapshot oldT, TolSnapshot newT)
         {
             if (oldT == null || newT == null || !oldT.Valid || !newT.Valid) return;
 
-            // Kun gauge har en aegte Nominal. Blob er en ren min/max-range.
+            // Only the gauge has a real Nominal. Blob is a pure min/max range.
             if (tool == "Gauge" && Math.Abs(oldT.Nominal - newT.Nominal) > 0.0001)
                 AuditLogger.Log(AuditUser, "Parameter", tool + " Nominal", Title,
                                 oldValue: oldT.Nominal.ToString("0.##"),
@@ -228,7 +230,7 @@ namespace SDK_GUI_Test1
             get => _isOnline;
             set { SetProperty(ref _isOnline, value); OnPropertyChanged(nameof(OnlineText)); }
         }
-        public string ConnectionText => IsConnected ? "Connected" : "Ikke forbundet";
+        public string ConnectionText => IsConnected ? "Connected" : "Not connected";
         public string OnlineText => IsOnline ? "Online" : "Offline";
 
         private bool _hasUnsavedChanges;
@@ -238,7 +240,7 @@ namespace SDK_GUI_Test1
             set => SetProperty(ref _hasUnsavedChanges, value);
         }
 
-        // ===================== GAUGE RESULTAT =====================
+        // ===================== GAUGE RESULT =====================
         private string _measuredValue = "N/A";
         public string MeasuredValue
         {
@@ -310,12 +312,12 @@ namespace SDK_GUI_Test1
                 if (list != null && list.Count > 0)
                     MeasuredValue = list[0].ToString("0.0");
             }
-            catch { /* lad sidste kendte vaerdier staa */ }
+            catch { /* leave the last known values in place */ }
         }
 
-        // ===================== BRUGER (login + rettigheder) =====================
-        // IUserService er den ENESTE del der skiftes ud senere (LocalUserService -> AD/MSAL).
-        // Alt herunder (rettighedstjek, audit, UI-spaerring) forbliver uaendret.
+        // ===================== USER (login + permissions) =====================
+        // IUserService is the ONLY part that gets swapped out later (LocalUserService -> AD/MSAL).
+        // Everything below (permission checks, audit, UI blocking) stays unchanged.
         private readonly IUserService _userService = new LocalUserService();
 
         private AuthenticatedUser _user;
@@ -337,10 +339,10 @@ namespace SDK_GUI_Test1
         }
 
         public bool IsLoggedIn => User != null;
-        public string LoginButtonText => IsLoggedIn ? "Log ud" : "Log ind";
+        public string LoginButtonText => IsLoggedIn ? "Log out" : "Log in";
         public string CurrentUser => User?.Username ?? "";
 
-        // Rettigheder - UI binder IsEnabled til disse.
+        // Permissions - the UI binds IsEnabled to these.
         public bool CanOperate => User?.Has(Permission.CanOperate) ?? false;
         public bool CanEditGauge => User?.Has(Permission.CanEditGauge) ?? false;
         public bool CanEditBlob => User?.Has(Permission.CanEditBlob) ?? false;
@@ -350,14 +352,14 @@ namespace SDK_GUI_Test1
         public RelayCommand LoginCommand { get; }
         public RelayCommand SaveProgramCommand { get; }
 
-        // Brugernavn + rolle til audit-log: fx "tekniker (Tekniker)", ellers "ukendt".
-        private string AuditUser => User?.AuditName ?? "ukendt";
+        // Username + role for the audit log: e.g. "tekniker (Tekniker)", otherwise "unknown".
+        private string AuditUser => User?.AuditName ?? "unknown";
 
         private void DoLogin()
         {
             if (IsLoggedIn)
             {
-                AuditLogger.Log(AuditUser, "Login", "Log ud", Title);
+                AuditLogger.Log(AuditUser, "Login", "Log out", Title);
                 User = null;
                 return;
             }
@@ -366,16 +368,16 @@ namespace SDK_GUI_Test1
             if (dlg.ShowDialog() == true)
             {
                 User = dlg.AuthenticatedUser;
-                AuditLogger.Log(AuditUser, "Login", "Log ind", Title);
+                AuditLogger.Log(AuditUser, "Login", "Log in", Title);
             }
         }
 
         private void DoSaveProgram()
         {
-            if (!CanSaveProgram) { MessageBox.Show("Du har ikke rettighed til at gemme programmet."); return; }
+            if (!CanSaveProgram) { MessageBox.Show("You do not have permission to save the program."); return; }
 
             var dev = Device?.VisionDevice;
-            if (dev == null) { MessageBox.Show("Ingen forbindelse til kameraet."); return; }
+            if (dev == null) { MessageBox.Show("No connection to the camera."); return; }
 
             try
             {
@@ -384,31 +386,31 @@ namespace SDK_GUI_Test1
                 if (ReadSuccess(op))
                 {
                     HasUnsavedChanges = false;
-                    AuditLogger.Log(AuditUser, "Program", "Gem program", Title, result: "OK");
-                    MessageBox.Show("Program gemt.");
+                    AuditLogger.Log(AuditUser, "Program", "Save program", Title, result: "OK");
+                    MessageBox.Show("Program saved.");
                 }
                 else
                 {
-                    AuditLogger.Log(AuditUser, "Program", "Gem program", Title, result: "FEJL");
-                    MessageBox.Show("Programmet blev ikke gemt (kameraet returnerede fejl).");
+                    AuditLogger.Log(AuditUser, "Program", "Save program", Title, result: "ERROR");
+                    MessageBox.Show("The program was not saved (the camera returned an error).");
                 }
             }
             catch (Exception ex)
             {
-                AuditLogger.Log(AuditUser, "Fejl", "Gem program",
+                AuditLogger.Log(AuditUser, "Error", "Save program",
                                 detail: Title + ": " + ex.Message);
-                MessageBox.Show("Gem program fejlede: " + ex.Message);
+                MessageBox.Show("Save program failed: " + ex.Message);
             }
         }
 
-        // ===================== MANUEL BETJENING =====================
+        // ===================== MANUAL OPERATION =====================
         public RelayCommand TriggerCommand { get; }
         public RelayCommand OnlineCommand { get; }
         public RelayCommand OfflineCommand { get; }
 
         private void SetOnline(bool online)
         {
-            if (!CanOperate) { MessageBox.Show("Du har ikke rettighed til at betjene kameraet."); return; }
+            if (!CanOperate) { MessageBox.Show("You do not have permission to operate the camera."); return; }
 
             try
             {
@@ -424,14 +426,14 @@ namespace SDK_GUI_Test1
                 if (wasOnline != nowOnline)
                     AuditLogger.Log(AuditUser, "Status",
                                     online ? "Online" : "Offline", Title,
-                                    result: nowOnline == online ? "OK" : "FEJL");
+                                    result: nowOnline == online ? "OK" : "ERROR");
             }
             catch (Exception ex)
             {
-                AuditLogger.Log(AuditUser, "Fejl",
+                AuditLogger.Log(AuditUser, "Error",
                                 online ? "Online" : "Offline",
                                 detail: Title + ": " + ex.Message);
-                MessageBox.Show("Online/Offline fejlede: " + ex.Message);
+                MessageBox.Show("Online/Offline failed: " + ex.Message);
             }
         }
 
@@ -442,12 +444,12 @@ namespace SDK_GUI_Test1
                 var dev = Device?.VisionDevice;
                 if (dev == null) return;
 
-                if (!CanOperate) { MessageBox.Show("Du har ikke rettighed til at betjene kameraet."); return; }
+                if (!CanOperate) { MessageBox.Show("You do not have permission to operate the camera."); return; }
 
                 bool isOnline = ReadValue<bool>(dev.GetOnlineState_Sync());
                 if (!isOnline)
                 {
-                    MessageBox.Show("Kameraet er offline. Gaa online foer du trigger.");
+                    MessageBox.Show("The camera is offline. Go online before you trigger.");
                     return;
                 }
 
@@ -467,7 +469,7 @@ namespace SDK_GUI_Test1
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Trigger fejlede: " + ex.Message);
+                MessageBox.Show("Trigger failed: " + ex.Message);
             }
         }
     }

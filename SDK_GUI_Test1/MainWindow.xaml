@@ -20,14 +20,14 @@
         <!-- TOP BAR -->
         <materialDesign:ColorZone Grid.Row="0" Mode="PrimaryDark" Padding="16"
                                   materialDesign:ElevationAssist.Elevation="Dp4">
-            <TextBlock Text="1349 - Vision inspektion" FontSize="20" FontWeight="Bold"/>
+            <TextBlock Text="1349 - Box Inspection" FontSize="20" FontWeight="Bold"/>
         </materialDesign:ColorZone>
 
         <!-- TABS -->
         <TabControl Grid.Row="1" Margin="0">
 
-            <!-- ===== STARTSIDE: overblik ===== -->
-            <TabItem Header="Startside">
+            <!-- ===== HOMEPAGE: Overview ===== -->
+            <TabItem Header="Homepage">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <ItemsControl ItemsSource="{Binding Cameras}" Margin="16">
                         <ItemsControl.ItemsPanel>
@@ -58,7 +58,7 @@
                                                     VisionDeviceWrapper="{Binding Device}"
                                                     ExternalTrigger="{Binding ExternalTrigger}"
                                                     Visibility="{Binding IsActive, Converter={StaticResource BoolToVis}}"/>
-                                                <TextBlock Text="Intet kamera"
+                                                <TextBlock Text="No Camera"
                                                            HorizontalAlignment="Center" VerticalAlignment="Center"
                                                            Opacity="0.4" FontSize="14"
                                                            Visibility="{Binding IsActive, Converter={StaticResource InverseBoolToVis}}"/>
@@ -72,19 +72,29 @@
                 </ScrollViewer>
             </TabItem>
 
-            <!-- ===== KAMERA 1 ===== -->
-            <TabItem Header="Kamera 1">
+            <!-- ===== CAMERA 1 ===== -->
+            <TabItem Header="Label Inspection">
                 <local:CameraPanel DataContext="{Binding Cameras[0]}"/>
             </TabItem>
 
-            <!-- ===== KAMERA 2 ===== -->
-            <TabItem Header="Kamera 2">
+            <!-- ===== CAMERA 2 ===== -->
+            <TabItem Header="Camera 2">
                 <local:CameraPanel DataContext="{Binding Cameras[1]}" Loaded="CameraPanel_Loaded"/>
             </TabItem>
 
-            <!-- ===== KAMERA 3 ===== -->
-            <TabItem Header="Kamera 3">
+            <!-- ===== CAMERA 3 ===== -->
+            <TabItem Header="Camera 3">
                 <local:CameraPanel DataContext="{Binding Cameras[2]}"/>
+            </TabItem>
+
+            <!-- ===== CAMERA 4 ===== -->
+            <TabItem Header="Camera 4">
+                <local:CameraPanel DataContext="{Binding Cameras[3]}"/>
+            </TabItem>
+
+            <!-- ===== CAMERA 5 ===== -->
+            <TabItem Header="Camera 5">
+                <local:CameraPanel DataContext="{Binding Cameras[4]}"/>
             </TabItem>
         </TabControl>
     </Grid>

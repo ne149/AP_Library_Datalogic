@@ -2,9 +2,8 @@
 namespace GUI_Library
 {
     /// <summary>
-    /// Rollerne og deres rettigheder. Dette er det ENESTE sted rolle->rettigheds-
-    /// kortlaegningen defineres. Tilfoej en ny rolle ved at tilfoeje en enum-vaerdi
-    /// og en case i Permissions().
+    /// The roles and their permissions. This is the where the user is assigned permissions. 
+    /// Add a new role by adding an enum value and a case in Permissions().
     /// </summary>
     public enum UserRole
     {
@@ -45,7 +44,7 @@ namespace GUI_Library
             }
         }
 
-        // Paen tekst til UI/audit (saa vi ikke viser "VisionMand" raat hvis vi vil aendre det).
+        // Friendly text for UI/audit (so we don't show "VisionMand" raw if we want to change it).
         public static string DisplayName(this UserRole role)
         {
             switch (role)

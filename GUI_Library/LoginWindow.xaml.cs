@@ -7,7 +7,7 @@ namespace GUI_Library
     {
         private readonly IUserService _userService;
 
-        // Resultatet af et vellykket login - laeses af kalderen efter ShowDialog()==true.
+        // The result of a successful login - read by the caller after ShowDialog()==true.
         public AuthenticatedUser AuthenticatedUser { get; private set; }
 
         public LoginWindow(IUserService userService)
@@ -24,21 +24,21 @@ namespace GUI_Library
 
             if (string.IsNullOrEmpty(user) || string.IsNullOrEmpty(pass))
             {
-                MessageBox.Show("Indtast brugernavn og kode.");
+                MessageBox.Show("Enter username and password.");
                 return;
             }
 
             var result = _userService.Login(user, pass);
             if (result == null)
             {
-                MessageBox.Show("Forkert brugernavn eller kode.");
+                MessageBox.Show("Incorrect username or password.");
                 PasswordBox.Clear();
                 PasswordBox.Focus();
-                return;   // vinduet bliver staaende
+                return;   // the window stays open
             }
 
             AuthenticatedUser = result;
-            DialogResult = true;   // kun ved succes
+            DialogResult = true;   // only on success
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e)

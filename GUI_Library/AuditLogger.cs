@@ -8,21 +8,22 @@ using System.Threading;
 namespace GUI_Library
 {
     /// <summary>
-    /// Traad-sikker audit-logger. En CSV-fil per dag i en fast mappe.
-    /// Filnavn: audit_YYYY-MM-DD.csv. Kolonner:
+    /// Thread-safe audit logger. One CSV file per day in a fixed folder.
+    /// File name: audit_YYYY-MM-DD.csv. Columns:
     /// Timestamp, User, Category, Action, Detail, OldValue, NewValue, Result.
     ///
-    /// ROBUSTHED (vigtigt for audit):
-    /// - Normalt APPENDES kun til hovedfilen (hurtigt og sikkert).
-    /// - Hvis filen er laast (fx aaben i Excel), gemmes posten i en fallback-fil
-    ///   (audit_YYYY-MM-DD.pending.csv) saa intet tabes, og HasPending bliver true.
-    /// - Naar filen er fri igen (Excel lukket), kan MergePending() flette de
-    ///   ventende poster ind OG SORTERE hele filen efter tidsstempel, saa
-    ///   kronologien altid er korrekt uanset hvornaar fletningen sker.
+    /// ROBUSTNESS (important for audit):
+    /// - Normally only APPENDS to the main file (fast and safe).
+    /// - If the file is locked (e.g. open in Excel), the entry is saved to a
+    ///   fallback file (audit_YYYY-MM-DD.pending.csv) so nothing is lost, and
+    ///   HasPending becomes true.
+    /// - When the file is free again (Excel closed), MergePending() can merge the
+    ///   pending entries in AND SORT the whole file by timestamp, so the
+    ///   chronology is always correct regardless of when the merge happens.
     ///
-    /// YDELSE: timeren skal kun kalde MergePending() naar HasPending er true
-    /// (en gratis bool-tjek). Saa laver loggeren ingen disk-I/O i drift naar der
-    /// ikke er noget at flette.
+    /// PERFORMANCE: the timer should only call MergePending() when HasPending is
+    /// true (a free bool check). That way the logger does no disk I/O during
+    /// operation when there is nothing to merge.
     /// </summary>
     public static class AuditLogger
     {
@@ -35,12 +36,12 @@ namespace GUI_Library
         private const int MaxRetries = 5;
         private const int RetryDelayMs = 150;
 
-        // True naar der ligger ventende poster i en fallback-fil der endnu ikke er
-        // flettet ind. Timeren kan laese denne GRATIS hvert sekund og kun kalde
-        // MergePending() naar den er true.
+        // True when there are pending entries in a fallback file that have not yet
+        // been merged in. The timer can read this for FREE every second and only
+        // call MergePending() when it is true.
         public static bool HasPending { get; private set; }
 
-        // UI kan abonnere for at vise en advarsel naar hovedfilen ikke kunne skrives.
+        // The UI can subscribe to show a warning when the main file could not be written.
         public static event Action<string> OnWriteFailed;
 
         public static void Log(
@@ -69,28 +70,28 @@ namespace GUI_Library
                 string dateTag = DateTime.Now.ToString("yyyy-MM-dd");
                 string path = Path.Combine(LogDir, "audit_" + dateTag + ".csv");
 
-                // Normal vej: APPEND til hovedfilen (hurtigt, sikkert).
+                // Normal path: APPEND to the main file (fast, safe).
                 if (TryAppend(path, line, headerIfNew: true))
                     return;
 
-                // Hovedfilen er laast (Excel). Gem i fallback saa intet tabes.
+                // The main file is locked (Excel). Save to fallback so nothing is lost.
                 string fallback = Path.Combine(LogDir, "audit_" + dateTag + ".pending.csv");
                 bool fallbackOk = TryAppend(fallback, line, headerIfNew: true);
                 if (fallbackOk) HasPending = true;
 
                 string msg = fallbackOk
-                    ? "Audit-loggen kunne ikke skrives (filen er maaske aaben i Excel). " +
-                      "Posten er gemt midlertidigt og flettes ind naar filen lukkes."
-                    : "KRITISK: audit-posten kunne hverken skrives til hovedfil eller fallback.";
+                    ? "The audit log could not be written (the file may be open in Excel). " +
+                      "The entry has been saved temporarily and will be merged in when the file is closed."
+                    : "CRITICAL: the audit entry could not be written to either the main file or the fallback.";
 
                 OnWriteFailed?.Invoke(msg);
             }
         }
 
-        // Fletter ventende fallback-poster ind i hovedfilen OG sorterer hele filen
-        // efter tidsstempel, saa kronologien er korrekt. Kaldes kun naar HasPending
-        // er true OG hovedfilen er fri (ikke laast af Excel).
-        // Returnerer true hvis fletning lykkedes (eller intet at flette).
+        // Merges pending fallback entries into the main file AND sorts the whole
+        // file by timestamp, so the chronology is correct. Called only when
+        // HasPending is true AND the main file is free (not locked by Excel).
+        // Returns true if the merge succeeded (or there was nothing to merge).
         public static bool MergePending()
         {
             lock (_lock)
@@ -103,12 +104,12 @@ namespace GUI_Library
 
                     if (!File.Exists(fallback)) { HasPending = false; return true; }
 
-                    // Tjek at hovedfilen er fri at skrive til FOER vi roerer noget.
-                    // Hvis Excel stadig holder den, giver vi op (proeves naeste gang).
+                    // Check that the main file is free to write to BEFORE we touch
+                    // anything. If Excel still holds it, we give up (retried next time).
                     if (File.Exists(path) && IsLocked(path))
                         return false;
 
-                    // Saml alle datalinjer (uden header) fra begge filer.
+                    // Collect all data lines (without header) from both files.
                     var rows = new List<string>();
                     if (File.Exists(path))
                         rows.AddRange(ReadDataLines(path));
@@ -116,21 +117,21 @@ namespace GUI_Library
 
                     if (rows.Count == 0) { TryDelete(fallback); HasPending = false; return true; }
 
-                    // Sortér efter tidsstempel (foerste felt, format yyyy-MM-dd HH:mm:ss).
-                    // Stabilt: poster med samme tid beholder indbyrdes raekkefoelge.
+                    // Sort by timestamp (first field, format yyyy-MM-dd HH:mm:ss).
+                    // Stable: entries with the same time keep their relative order.
                     var sorted = rows
                         .Select((text, idx) => new { text, idx, ts = ParseTimestamp(text) })
                         .OrderBy(r => r.ts).ThenBy(r => r.idx)
                         .Select(r => r.text)
                         .ToList();
 
-                    // Skriv hele filen om: header + sorterede linjer.
+                    // Rewrite the whole file: header + sorted lines.
                     var sb = new StringBuilder();
                     sb.AppendLine(Header);
                     foreach (var r in sorted) sb.AppendLine(r);
 
-                    // Skriv via temp-fil og erstat, saa en halv skrivning aldrig
-                    // efterlader filen oedelagt.
+                    // Write via temp file and replace, so a half-written file never
+                    // leaves the file corrupted.
                     string tmp = path + ".tmp";
                     File.WriteAllText(tmp, sb.ToString(), Encoding.UTF8);
                     if (File.Exists(path)) File.Delete(path);
@@ -142,19 +143,19 @@ namespace GUI_Library
                 }
                 catch
                 {
-                    return false;  // proeves igen naeste gang HasPending tjekkes
+                    return false;  // retried next time HasPending is checked
                 }
             }
         }
 
-        // ---------- hjaelpere ----------
+        // ---------- helpers ----------
 
         private static IEnumerable<string> ReadDataLines(string file)
         {
             string[] lines = File.ReadAllLines(file, Encoding.UTF8);
             for (int i = 0; i < lines.Length; i++)
             {
-                if (i == 0 && lines[i] == Header) continue;   // spring header over
+                if (i == 0 && lines[i] == Header) continue;   // skip header
                 if (!string.IsNullOrWhiteSpace(lines[i]))
                     yield return lines[i];
             }
@@ -162,8 +163,8 @@ namespace GUI_Library
 
         private static DateTime ParseTimestamp(string row)
         {
-            // Foerste felt er tidsstemplet. Det er ikke escaped (ingen komma i datoen),
-            // saa vi kan tage alt foer foerste komma.
+            // The first field is the timestamp. It is not escaped (no comma in the
+            // date), so we can take everything before the first comma.
             int comma = row.IndexOf(',');
             string ts = comma > 0 ? row.Substring(0, comma) : row;
             return DateTime.TryParse(ts, out var dt) ? dt : DateTime.MinValue;
@@ -174,7 +175,7 @@ namespace GUI_Library
             try
             {
                 using (new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
-                    return false;  // kunne aabnes eksklusivt -> ikke laast
+                    return false;  // could be opened exclusively -> not locked
             }
             catch (IOException) { return true; }
             catch { return true; }
