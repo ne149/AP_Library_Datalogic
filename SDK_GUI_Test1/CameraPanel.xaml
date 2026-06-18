@@ -12,7 +12,7 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <!-- VENSTRE: kontroller -->
+        <!-- LEFT: Controller -->
         <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
             <StackPanel>
 
@@ -42,11 +42,11 @@
                     </Grid>
                 </materialDesign:Card>
 
-                <!-- BRUGER -->
+                <!-- USER -->
                 <materialDesign:Card Padding="16" Margin="0,0,0,16"
                                  materialDesign:ElevationAssist.Elevation="Dp2">
                     <StackPanel>
-                        <TextBlock Text="BRUGER" FontWeight="Bold" FontSize="12" Opacity="0.7" Margin="0,0,0,12"/>
+                        <TextBlock Text="USER" FontWeight="Bold" FontSize="12" Opacity="0.7" Margin="0,0,0,12"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -56,29 +56,29 @@
                             <Button Grid.Column="0" Content="{Binding LoginButtonText}"
                                 Command="{Binding LoginCommand}"
                                 Style="{StaticResource MaterialDesignRaisedButton}"/>
-                            <Button Grid.Column="2" Content="Gem program"
+                            <Button Grid.Column="2" Content="Save Program"
                                 Command="{Binding SaveProgramCommand}"
                                 IsEnabled="{Binding CanSaveProgram}"
-                                Style="{StaticResource MaterialDesignOutlinedButton}"/>
+                                Style="{StaticResource MaterialDesignOutlinedButton}" Click="Button_Click"/>
                         </Grid>
-                        <TextBlock Text="{Binding CurrentUser, StringFormat=Logget ind som: {0}}"
+                        <TextBlock Text="{Binding CurrentUser, StringFormat=Logged in as: {0}}"
                                Visibility="{Binding IsLoggedIn, Converter={StaticResource BoolToVis}}"
                                FontSize="12" Opacity="0.7" Margin="0,8,0,0"/>
 
-                        <!-- Advarsel: aendring er aktiv i kameraet men ikke gemt til .vp. -->
+                        <!-- WARNING: Changes are active in the camera, but not saved in .vp -->
                         <Border Visibility="{Binding HasUnsavedChanges, Converter={StaticResource BoolToVis}}"
                                 Background="#FFF3CD" CornerRadius="4" Padding="10,6" Margin="0,10,0,0">
-                            <TextBlock Text="Ugemte aendringer - tryk 'Gem program' for at goere dem permanente"
+                            <TextBlock Text="Unsaved changes - Press 'Save Program' to save the changes"
                                        Foreground="#856404" FontSize="12" TextWrapping="Wrap"/>
                         </Border>
                     </StackPanel>
                 </materialDesign:Card>
 
-                <!-- MANUEL BETJENING -->
+                <!-- MANUAL CONTROL -->
                 <materialDesign:Card Padding="16" Margin="0,0,0,16"
                                  materialDesign:ElevationAssist.Elevation="Dp2">
                     <StackPanel>
-                        <TextBlock Text="MANUEL BETJENING" FontWeight="Bold" FontSize="12" Opacity="0.7" Margin="0,0,0,12"/>
+                        <TextBlock Text="MANUAL CONTROL" FontWeight="Bold" FontSize="12" Opacity="0.7" Margin="0,0,0,12"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -100,14 +100,14 @@
                     </StackPanel>
                 </materialDesign:Card>
 
-                <!-- TOOL: GAUGE (kameraspecifik) -->
+                <!-- TOOL: GAUGE -->
                 <materialDesign:Card Padding="16"
                                  materialDesign:ElevationAssist.Elevation="Dp2">
                     <StackPanel>
                         <TextBlock Text="GAUGE" FontWeight="Bold" FontSize="12"
                                Opacity="0.7" Margin="0,0,0,12"/>
 
-                        <!-- Aktuel maalt vaerdi (Distance List.element) + pass/fail-maerke. -->
+                        <!-- Actual value (Distance List.element) + pass/fail-label. -->
                         <DockPanel Margin="0,0,0,12">
                             <Border DockPanel.Dock="Right" VerticalAlignment="Center"
                                     CornerRadius="4" Padding="14,4"
@@ -117,7 +117,7 @@
                                            Foreground="White" FontWeight="Bold" FontSize="13"/>
                             </Border>
                             <StackPanel>
-                                <TextBlock Text="Aktuel" FontSize="12" Opacity="0.6"/>
+                                <TextBlock Text="Actual Value" FontSize="12" Opacity="0.6"/>
                                 <controls:PropertyBlock
                                     FontSize="28" FontWeight="Bold"
                                     PropertyPort="{Binding Source={x:Static local:VisionPorts.GAUGE_MEASURED},
@@ -127,7 +127,7 @@
                             </StackPanel>
                         </DockPanel>
 
-                        <!-- AddOn-visning af HELE tolerance-porten (minus/nominal/plus). -->
+                        <!-- AddOn- Showing the tolerance port (minus/nominal/plus). -->
                         <Separator Margin="0,16,0,8"/>
                         <TextBlock Text="Tolerance (VPM)" FontSize="12"
                                    Opacity="0.6" Margin="0,0,0,6"/>
@@ -141,14 +141,14 @@
                     </StackPanel>
                 </materialDesign:Card>
 
-                <!-- TOOL: BLOB (kameraspecifik) -->
+                <!-- TOOL: BLOB -->
                 <materialDesign:Card Padding="16" Margin="0,16,0,0"
                                  materialDesign:ElevationAssist.Elevation="Dp2">
                     <StackPanel>
                         <TextBlock Text="BLOB" FontWeight="Bold" FontSize="12"
                                Opacity="0.7" Margin="0,0,0,12"/>
 
-                        <!-- Aktuelt antal fundne blobs + pass/fail-maerke. -->
+                        <!-- Actual number of blobs found + pass/fail-label. -->
                         <DockPanel Margin="0,0,0,12">
                             <Border DockPanel.Dock="Right" VerticalAlignment="Center"
                                     CornerRadius="4" Padding="14,4"
@@ -158,7 +158,7 @@
                                            Foreground="White" FontWeight="Bold" FontSize="13"/>
                             </Border>
                             <StackPanel>
-                                <TextBlock Text="Antal blobs" FontSize="12" Opacity="0.6"/>
+                                <TextBlock Text="Number of Blobs" FontSize="12" Opacity="0.6"/>
                                 <controls:PropertyBlock
                                     FontSize="28" FontWeight="Bold"
                                     PropertyPort="{Binding Source={x:Static local:VisionPorts.BLOB_COUNT},
@@ -171,7 +171,7 @@
                         <Separator Margin="0,0,0,8"/>
 
                         <!-- Required Number Of Blobs (Range 1D: min/max). -->
-                        <TextBlock Text="Antal blobs (min / max)" FontSize="12"
+                        <TextBlock Text="Blobs Tolerance (min / max)" FontSize="12"
                                    Opacity="0.6" Margin="0,0,0,6"/>
                         <controls:PropertyTolerance
                             PropertyPort="{Binding Source={x:Static local:VisionPorts.BLOB_REQUIRED},
@@ -185,11 +185,11 @@
             </StackPanel>
         </ScrollViewer>
 
-        <!-- HOEJRE: live billede via ImageViewer (AddOn) -->
+        <!-- RIGHT: live image through ImageViewer (AddOn) -->
         <materialDesign:Card Grid.Column="2" Padding="12"
                              materialDesign:ElevationAssist.Elevation="Dp2">
             <DockPanel>
-                <TextBlock DockPanel.Dock="Top" Text="BILLEDE" FontWeight="Bold"
+                <TextBlock DockPanel.Dock="Top" Text="IMAGE" FontWeight="Bold"
                            FontSize="12" Opacity="0.7" Margin="4,4,0,12"/>
                 <controls:ImageViewer
                     ImagePort="{Binding Source={x:Static local:VisionPorts.IMAGE},

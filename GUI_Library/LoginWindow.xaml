@@ -16,20 +16,20 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="Log ind" FontSize="20" FontWeight="Bold" Margin="0,0,0,16"/>
+        <TextBlock Grid.Row="0" Text="Log in" FontSize="20" FontWeight="Bold" Margin="0,0,0,16"/>
 
         <TextBox Grid.Row="1" x:Name="UsernameBox"
-                 materialDesign:HintAssist.Hint="Brugernavn"
+                 materialDesign:HintAssist.Hint="Username"
                  Style="{StaticResource MaterialDesignOutlinedTextBox}"
                  Margin="0,0,0,12"/>
 
         <PasswordBox Grid.Row="2" x:Name="PasswordBox"
-                     materialDesign:HintAssist.Hint="Kode"
+                     materialDesign:HintAssist.Hint="Password"
                      Style="{StaticResource MaterialDesignOutlinedPasswordBox}"
                      KeyDown="PasswordBox_KeyDown"/>
 
         <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="ANNULLER" Click="Cancel_Click"
+            <Button Content="CANCEL" Click="Cancel_Click"
                     Style="{StaticResource MaterialDesignOutlinedButton}" Width="110" Margin="0,0,8,0"/>
             <Button Content="LOG IND" Click="Ok_Click"
                     Style="{StaticResource MaterialDesignRaisedButton}" Width="110"/>

@@ -2,13 +2,13 @@
 namespace GUI_Library
 {
     /// <summary>
-    /// Login-graensefladen. Resten af appen kender KUN denne.
-    /// Senere skiftes LocalUserService ud med en AD/MSAL-implementering -
-    /// alt andet (roller, rettigheder, UI-spaerring, audit) er uaendret.
+    /// The login interface. The rest of the app knows ONLY this one.
+    /// Later, LocalUserService is swapped out for an AD/MSAL implementation -
+    /// everything else (roles, permissions, UI blocking, audit) stays unchanged.
     /// </summary>
     public interface IUserService
     {
-        /// <returns>AuthenticatedUser ved succes, ellers null.</returns>
+        /// <returns>AuthenticatedUser on success, otherwise null.</returns>
         AuthenticatedUser Login(string username, string password);
     }
 }

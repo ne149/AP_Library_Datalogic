@@ -14,7 +14,7 @@ namespace GUI_Library
             => throw new NotImplementedException();
     }
 
-    /// <summary>true -> Collapsed, false -> Visible (omvendt)</summary>
+    /// <summary>true -> Collapsed, false -> Visible (reversed)</summary>
     public class InverseBoolToVis : IValueConverter
     {
         public object Convert(object value, Type t, object p, CultureInfo c)

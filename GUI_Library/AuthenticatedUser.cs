@@ -2,8 +2,8 @@
 namespace GUI_Library
 {
     /// <summary>
-    /// Resultatet af et vellykket login. Baerer brugernavn + rolle og giver et
-    /// enkelt Has()-tjek som ViewModel og UI bruger til at spaerre/tillade.
+    /// The result of a successful login. Carries the username + role and provides
+    /// a simple Has() check that the ViewModel and UI use to block/allow actions.
     /// </summary>
     public class AuthenticatedUser
     {
@@ -18,7 +18,7 @@ namespace GUI_Library
 
         public bool Has(Permission p) => Role.Permissions().HasFlag(p);
 
-        // Navn der bruges i audit-loggen: "nisanth (Tekniker)".
+        // Name used in the audit log: "nisanth (Tekniker)".
         public string AuditName => $"{Username} ({Role.DisplayName()})";
     }
 }

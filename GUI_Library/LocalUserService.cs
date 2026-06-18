@@ -5,12 +5,12 @@ using System.Collections.Generic;
 namespace GUI_Library
 {
     /// <summary>
-    /// MIDLERTIDIG test-implementering med en hardkodet brugerliste.
-    /// Lader dig teste hele rolle-/rettighedssystemet NU uden domaene.
+    /// TEMPORARY test implementation with a hardcoded user list.
+    /// Lets you test the entire role/permission system NOW without a domain.
     ///
-    /// ===> DETTE ER DEN ENESTE FIL DER SKIFTES UD med AD/MSAL senere. <===
+    /// ===> THIS IS THE ONLY FILE THAT GETS SWAPPED OUT for AD/MSAL later. <===
     ///
-    /// Erstat ikke koder med rigtige hemmeligheder her - det er kun til test.
+    /// Do not replace these with real secrets here - this is for testing only.
     /// </summary>
     public class LocalUserService : IUserService
     {
@@ -20,7 +20,7 @@ namespace GUI_Library
             public UserRole Role;
         }
 
-        // Test-brugere. Brugernavn -> (kode, rolle).
+        // Test users. Username -> (password, role).
         private readonly Dictionary<string, Entry> _users =
             new Dictionary<string, Entry>(StringComparer.OrdinalIgnoreCase)
         {
