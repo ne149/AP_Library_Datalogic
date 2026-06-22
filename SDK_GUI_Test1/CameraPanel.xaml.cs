@@ -15,5 +15,10 @@ namespace SDK_GUI_Test1
         {
 
         }
+
+        private void PropertyTolerance_Loaded(object sender, System.Windows.RoutedEventArgs e)
+        {
+
+        }
     }
 }

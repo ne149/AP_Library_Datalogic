@@ -179,7 +179,7 @@
                             VisionDeviceWrapper="{Binding Device}"
                             ExternalTrigger="{Binding ExternalTrigger}"
                             IsEnabled="{Binding CanEditBlob}"
-                            EnableKeyboard="True"/>
+                            EnableKeyboard="True" Loaded="PropertyTolerance_Loaded"/>
                     </StackPanel>
                 </materialDesign:Card>
             </StackPanel>

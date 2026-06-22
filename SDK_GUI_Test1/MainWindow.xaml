@@ -96,6 +96,28 @@
             <TabItem Header="Camera 5">
                 <local:CameraPanel DataContext="{Binding Cameras[4]}"/>
             </TabItem>
+
+            <!-- ===== SETTINGS (Admin-only, except on first run) ===== -->
+            <TabItem Header="Settings"
+                     Visibility="{Binding Session.IsSettingsTabVisible, Converter={StaticResource BoolToVis}}">
+                <Grid>
+                    <materialDesign:Card Padding="24" Margin="24"
+                                         VerticalAlignment="Top" HorizontalAlignment="Left"
+                                         materialDesign:ElevationAssist.Elevation="Dp2">
+                        <StackPanel>
+                            <TextBlock Text="Active Directory" FontSize="18" FontWeight="Bold"
+                                       Margin="0,0,0,8"/>
+                            <TextBlock TextWrapping="Wrap" Opacity="0.7" MaxWidth="420"
+                                       Margin="0,0,0,16"
+                                       Text="Configure the AD server, domain and which AD group grants each role. On first run anyone can set this up; afterwards only an administrator can change it."/>
+                            <Button Content="OPEN AD SETTINGS"
+                                    Command="{Binding OpenSettingsCommand}"
+                                    Style="{StaticResource MaterialDesignRaisedButton}"
+                                    HorizontalAlignment="Left"/>
+                        </StackPanel>
+                    </materialDesign:Card>
+                </Grid>
+            </TabItem>
         </TabControl>
     </Grid>
 </Window>

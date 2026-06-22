@@ -24,10 +24,10 @@ namespace GUI_Library
         private readonly Dictionary<string, Entry> _users =
             new Dictionary<string, Entry>(StringComparer.OrdinalIgnoreCase)
         {
-            { "operator",   new Entry { Password = "123", Role = UserRole.Operator   } },
+            { "operator",   new Entry { Password = "123",      Role = UserRole.Operator   } },
             { "tekniker",   new Entry { Password = "tekniker", Role = UserRole.Tekniker   } },
-            { "vision",     new Entry { Password = "vision", Role = UserRole.VisionMand } },
-            { "admin",      new Entry { Password = "Admin", Role = UserRole.Admin      } },
+            { "vision",     new Entry { Password = "vision",   Role = UserRole.VisionMand } },
+            { "admin",      new Entry { Password = "Admin",    Role = UserRole.Admin      } },
         };
 
         public AuthenticatedUser Login(string username, string password)

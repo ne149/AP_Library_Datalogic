@@ -1,6 +1,4 @@
-// Test123
-
-
+// ===================== CameraViewModel.cs =====================
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System;
@@ -17,6 +15,10 @@ namespace SDK_GUI_Test1
     /// <summary>
     /// ONE camera. Its own VisionDeviceWrapper (one connection).
     /// AddOn controls (PropertyTolerance, PropertyBlock, ImageViewer) bind via endpoints.
+    ///
+    /// Login is GLOBAL via the shared AppSession (log in once -> applies to every
+    /// camera). This view model reads permissions from the session and refreshes
+    /// the UI whenever the logged-in user changes.
     ///
     /// Logging of parameter changes happens ONLY on trigger (DoTrigger): we compare
     /// the current gauge and blob values with the ones from the last trigger and log
@@ -38,15 +40,26 @@ namespace SDK_GUI_Test1
         private readonly int _port;
         private readonly DispatcherTimer _statusTimer;
 
-        public CameraViewModel(string title, string ip, int port, bool active = true)
+        // Shared application session (settings + global logged-in user).
+        private readonly AppSession _session;
+
+        public CameraViewModel(AppSession session, string title, string ip, int port, bool active = true)
         {
+            _session = session;
             Title = title;
             _ip = ip;
             _port = port;
             IsActive = active;
 
+            // When the global user logs in/out, refresh all permission-bound UI.
+            if (_session != null)
+                _session.UserChanged += OnSessionUserChanged;
+
             if (!IsActive)
+            {
+                LoginCommand = new RelayCommand(DoLogin);
                 return;
+            }
 
             try
             {
@@ -81,6 +94,19 @@ namespace SDK_GUI_Test1
             _statusTimer.Start();
 
             RefreshStatus();
+        }
+
+        // Raise change notifications for everything tied to the logged-in user.
+        private void OnSessionUserChanged()
+        {
+            OnPropertyChanged(nameof(IsLoggedIn));
+            OnPropertyChanged(nameof(LoginButtonText));
+            OnPropertyChanged(nameof(CurrentUser));
+            OnPropertyChanged(nameof(CanOperate));
+            OnPropertyChanged(nameof(CanEditGauge));
+            OnPropertyChanged(nameof(CanEditBlob));
+            OnPropertyChanged(nameof(CanSaveProgram));
+            OnPropertyChanged(nameof(CanViewAudit));
         }
 
         // ===================== IDENTITY =====================
@@ -317,58 +343,49 @@ namespace SDK_GUI_Test1
         }
 
         // ===================== USER (login + permissions) =====================
-        // IUserService is the ONLY part that gets swapped out later (LocalUserService -> AD/MSAL).
-        // Everything below (permission checks, audit, UI blocking) stays unchanged.
-        private readonly IUserService _userService = new LocalUserService();
+        // All of this now reads from the shared AppSession so login is global.
 
-        private AuthenticatedUser _user;
-        public AuthenticatedUser User
-        {
-            get => _user;
-            set
-            {
-                SetProperty(ref _user, value);
-                OnPropertyChanged(nameof(IsLoggedIn));
-                OnPropertyChanged(nameof(LoginButtonText));
-                OnPropertyChanged(nameof(CurrentUser));
-                OnPropertyChanged(nameof(CanOperate));
-                OnPropertyChanged(nameof(CanEditGauge));
-                OnPropertyChanged(nameof(CanEditBlob));
-                OnPropertyChanged(nameof(CanSaveProgram));
-                OnPropertyChanged(nameof(CanViewAudit));
-            }
-        }
-
-        public bool IsLoggedIn => User != null;
-        public string LoginButtonText => IsLoggedIn ? "Log out" : "Log in";
-        public string CurrentUser => User?.Username ?? "";
+        public bool IsLoggedIn => _session?.IsLoggedIn ?? false;
+        public string LoginButtonText => _session?.LoginButtonText ?? "Log in";
+        public string CurrentUser => _session?.CurrentUser ?? "";
 
         // Permissions - the UI binds IsEnabled to these.
-        public bool CanOperate => User?.Has(Permission.CanOperate) ?? false;
-        public bool CanEditGauge => User?.Has(Permission.CanEditGauge) ?? false;
-        public bool CanEditBlob => User?.Has(Permission.CanEditBlob) ?? false;
-        public bool CanSaveProgram => User?.Has(Permission.CanSaveProgram) ?? false;
-        public bool CanViewAudit => User?.Has(Permission.CanViewAudit) ?? false;
+        public bool CanOperate => _session?.CanOperate ?? false;
+        public bool CanEditGauge => _session?.CanEditGauge ?? false;
+        public bool CanEditBlob => _session?.CanEditBlob ?? false;
+        public bool CanSaveProgram => _session?.CanSaveProgram ?? false;
+        public bool CanViewAudit => _session?.CanViewAudit ?? false;
 
         public RelayCommand LoginCommand { get; }
         public RelayCommand SaveProgramCommand { get; }
 
-        // Username + role for the audit log: e.g. "tekniker (Tekniker)", otherwise "unknown".
-        private string AuditUser => User?.AuditName ?? "unknown";
+        // Username + role for the audit log, from the shared session.
+        private string AuditUser => _session?.AuditUser ?? "unknown";
 
         private void DoLogin()
         {
-            if (IsLoggedIn)
+            if (_session == null) return;
+
+            if (_session.IsLoggedIn)
             {
                 AuditLogger.Log(AuditUser, "Login", "Log out", Title);
-                User = null;
+                _session.User = null;
                 return;
             }
 
-            var dlg = new LoginWindow(_userService) { Owner = Application.Current?.MainWindow };
+            // The app must be configured (AD details entered) before anyone can log in.
+            var userService = _session.CreateUserService();
+            if (userService == null)
+            {
+                MessageBox.Show("Active Directory is not configured yet. " +
+                                "Open the Settings tab to set it up first.");
+                return;
+            }
+
+            var dlg = new LoginWindow(userService) { Owner = Application.Current?.MainWindow };
             if (dlg.ShowDialog() == true)
             {
-                User = dlg.AuthenticatedUser;
+                _session.User = dlg.AuthenticatedUser;
                 AuditLogger.Log(AuditUser, "Login", "Log in", Title);
             }
         }

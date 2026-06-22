@@ -24,9 +24,9 @@
                  Margin="0,0,0,12"/>
 
         <PasswordBox Grid.Row="2" x:Name="PasswordBox"
-                     materialDesign:HintAssist.Hint="Password"
-                     Style="{StaticResource MaterialDesignOutlinedPasswordBox}"
-                     KeyDown="PasswordBox_KeyDown"/>
+                materialDesign:HintAssist.Hint="Password"
+                Style="{StaticResource MaterialDesignOutlinedPasswordBox}"
+                KeyDown="PasswordBox_KeyDown"/>
 
         <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="CANCEL" Click="Cancel_Click"

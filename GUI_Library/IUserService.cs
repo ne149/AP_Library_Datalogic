@@ -3,8 +3,8 @@ namespace GUI_Library
 {
     /// <summary>
     /// The login interface. The rest of the app knows ONLY this one.
-    /// Later, LocalUserService is swapped out for an AD/MSAL implementation -
-    /// everything else (roles, permissions, UI blocking, audit) stays unchanged.
+    /// LocalUserService uses UserRole, AdUserService uses Permission flags directly -
+    /// everything else (permissions, UI blocking, audit) stays unchanged.
     /// </summary>
     public interface IUserService
     {
