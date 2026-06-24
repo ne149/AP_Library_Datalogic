@@ -5,7 +5,7 @@
         TextElement.Foreground="{DynamicResource MaterialDesignBody}"
         FontFamily="{materialDesign:MaterialDesignFont}"
         Background="{DynamicResource MaterialDesignPaper}"
-        Title="AD Settings" Height="640" Width="480"
+        Title="AD Settings" Height="720" Width="480"
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize">
     <Grid Margin="24">
         <Grid.RowDefinitions>
@@ -34,6 +34,32 @@
                          materialDesign:HintAssist.Hint="Domain (e.g. company.local)"
                          Style="{StaticResource MaterialDesignOutlinedTextBox}"
                          Margin="0,0,0,12"/>
+
+                <!-- Protocol + optional port on one row -->
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition Width="140"/>
+                    </Grid.ColumnDefinitions>
+
+                    <ComboBox x:Name="ProtocolCombo" Grid.Column="0"
+                              materialDesign:HintAssist.Hint="Protocol"
+                              Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                              SelectionChanged="Protocol_SelectionChanged">
+                        <ComboBoxItem Content="LDAP (unencrypted)" IsSelected="True"/>
+                        <ComboBoxItem Content="LDAPS (TLS)"/>
+                    </ComboBox>
+
+                    <TextBox x:Name="PortBox" Grid.Column="2"
+                             materialDesign:HintAssist.Hint="Port (optional)"
+                             Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+                </Grid>
+
+                <TextBlock x:Name="PortHint"
+                           Text="Leave port empty to use the default (389 for LDAP, 636 for LDAPS)."
+                           FontSize="11" Opacity="0.6" TextWrapping="Wrap"
+                           Margin="0,0,0,12"/>
 
                 <!-- ADMIN CREDENTIALS (used only to fetch groups, never stored) -->
                 <TextBlock Text="ADMIN CREDENTIALS (to fetch groups)" FontWeight="Bold"

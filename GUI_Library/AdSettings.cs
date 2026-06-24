@@ -3,23 +3,19 @@ using System;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
-using System.Text;
 
 namespace GUI_Library
 {
     /// <summary>
-    /// Customer-specific AD configuration: server, domain and which AD group maps
-    /// to which application role. Stored as JSON next to the running .exe so it
-    /// survives restarts and is configured per installation (per customer).
+    /// Customer-specific AD configuration: server, domain, optional port/protocol,
+    /// and which AD group maps to which application role. Stored as JSON next to
+    /// the running .exe so it survives restarts and is configured per installation.
     ///
-    /// GUI_Library stays generic: it knows the SHAPE of the settings (three roles)
-    /// but not the actual group names - those are entered by the customer's admin
-    /// in the settings page and saved here.
-    ///
-    /// First run: the file does not exist yet, IsConfigured is false, and the
-    /// settings page is open to everyone so the admin can do the initial setup.
-    /// After setup: the file exists, IsConfigured is true, and the settings page
-    /// is restricted to Admin only.
+    /// CONNECTION PROTOCOL:
+    ///  - LDAP  (UseLdaps = false): no encryption. Simple bind, default port 389.
+    ///  - LDAPS (UseLdaps = true) : TLS encrypts the whole connection, default 636.
+    ///  Both use a simple (Basic) bind - no Kerberos - so it works reliably on
+    ///  machines that are NOT domain-joined and avoids time-sync (Kerberos) issues.
     /// </summary>
     [DataContract]
     public class AdSettings
@@ -29,6 +25,14 @@ namespace GUI_Library
 
         [DataMember(Name = "domain")]
         public string Domain { get; set; } = "";
+
+        // Optional explicit port. 0 = auto (389 for LDAP, 636 for LDAPS).
+        [DataMember(Name = "port")]
+        public int Port { get; set; } = 0;
+
+        // false = LDAP (unencrypted), true = LDAPS (TLS).
+        [DataMember(Name = "useLdaps")]
+        public bool UseLdaps { get; set; } = false;
 
         // AD group name that grants the Operator role (operate + gauge + save).
         [DataMember(Name = "groupOperator")]
@@ -43,6 +47,12 @@ namespace GUI_Library
         public string GroupAdmin { get; set; } = "";
 
         /// <summary>
+        /// Returns the port to actually use: the explicit Port if set (> 0),
+        /// otherwise the default for the chosen protocol (636 LDAPS / 389 LDAP).
+        /// </summary>
+        public int EffectivePort => Port > 0 ? Port : (UseLdaps ? 636 : 389);
+
+        /// <summary>
         /// True once the minimum required fields are filled in. Used to decide
         /// whether the settings page should be open (first run) or Admin-only.
         /// </summary>
@@ -53,13 +63,13 @@ namespace GUI_Library
 
         // ---------- persistence ----------
 
-        // The settings file lives next to the .exe (per-installation).
         private static string FilePath =>
             Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "adsettings.json");
 
         /// <summary>
         /// Loads settings from disk. Returns an empty (unconfigured) AdSettings if
-        /// the file does not exist or cannot be read - never throws.
+        /// the file does not exist or cannot be read - never throws. Old files
+        /// without the new port/useLdaps fields load fine (defaults are used).
         /// </summary>
         public static AdSettings Load()
         {

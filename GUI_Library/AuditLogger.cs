@@ -27,7 +27,7 @@ namespace GUI_Library
     /// </summary>
     public static class AuditLogger
     {
-        private static readonly string LogDir = @"C:\1349\AuditLog";
+        private static readonly string LogDir = @"C:\AuditLog";
         private static readonly object _lock = new object();
 
         private const string Header =

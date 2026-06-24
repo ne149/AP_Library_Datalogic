@@ -1,36 +1,26 @@
 ﻿// ===================== SettingsWindow.xaml.cs =====================
 using System.Collections.Generic;
 using System.Windows;
+using System.Windows.Controls;
 
 namespace GUI_Library
 {
     /// <summary>
     /// Generic AD settings dialog (lives in GUI_Library so it can be reused by any
-    /// customer project). The admin enters server, domain and their credentials,
-    /// fetches the list of groups that exist in the domain, and maps each role to
-    /// one of those groups. Admin credentials are used ONLY to fetch the group
-    /// list and to validate the configuration - they are never stored.
+    /// customer project). The admin enters server, domain, protocol/port and their
+    /// credentials, fetches the list of groups in the domain, and maps each role to
+    /// one of those groups. Admin credentials are used ONLY to fetch the group list
+    /// and to validate the configuration - they are never stored.
     ///
     /// ACCESS RULES:
-    ///  - First-time setup (not configured yet): Fetch and Save are open, so the
-    ///    installer/admin can do the initial configuration.
-    ///  - After configuration: both Fetch and Save require that the entered
-    ///    credentials belong to a user who is a member of the SAVED admin group.
-    ///    This stops a non-admin (e.g. the 'blob' user) from listing every group
-    ///    in the domain or changing the configuration.
-    ///
-    /// On Save the configuration is also validated against AD: the admin
-    /// credentials must connect AND the admin user must be a member of the chosen
-    /// admin group, which prevents saving a wrong IP/domain (lock-out) and stops
-    /// you from choosing an admin group you are not in.
+    ///  - First-time setup (not configured yet): Fetch and Save are open.
+    ///  - After configuration: both require credentials belonging to a member of
+    ///    the SAVED admin group.
     /// </summary>
     public partial class SettingsWindow : Window
     {
-        // The settings the dialog was opened with (used to know if we are already
-        // configured and, if so, which admin group to check access against).
         private readonly AdSettings _current;
 
-        // The settings after a successful save (read by the caller when DialogResult == true).
         public AdSettings SavedSettings { get; private set; }
 
         public SettingsWindow(AdSettings current)
@@ -39,13 +29,16 @@ namespace GUI_Library
 
             _current = current ?? new AdSettings();
 
-            // Pre-fill the connection fields and mapping from the existing settings
-            // so the admin edits rather than re-types everything.
             ServerBox.Text = _current.Server;
             DomainBox.Text = _current.Domain;
 
-            // Seed the combo boxes with the currently-saved group names so they
-            // show even before a fresh fetch.
+            // Protocol dropdown: index 0 = LDAP, index 1 = LDAPS.
+            ProtocolCombo.SelectedIndex = _current.UseLdaps ? 1 : 0;
+
+            // Show the explicit port only if one was saved; otherwise leave empty
+            // so the default is used.
+            PortBox.Text = _current.Port > 0 ? _current.Port.ToString() : "";
+
             var seeded = new List<string>();
             AddIfNotEmpty(seeded, _current.GroupOperator);
             AddIfNotEmpty(seeded, _current.GroupEngineer);
@@ -66,30 +59,67 @@ namespace GUI_Library
                 list.Add(value);
         }
 
-        // Fetch all groups from AD using the supplied admin credentials.
+        // True if the LDAPS option is selected.
+        private bool UseLdapsSelected => ProtocolCombo.SelectedIndex == 1;
+
+        // Reads the port from the textbox. Returns 0 (= auto) when empty.
+        // Returns -1 when the text is present but not a valid port number.
+        private int ReadPort()
+        {
+            string text = PortBox.Text?.Trim();
+            if (string.IsNullOrWhiteSpace(text))
+                return 0;
+
+            int port;
+            if (int.TryParse(text, out port) && port > 0 && port <= 65535)
+                return port;
+
+            return -1;
+        }
+
+        private void Protocol_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // PortHint is null during the initial InitializeComponent pass.
+            if (PortHint == null) return;
+
+            PortHint.Text = UseLdapsSelected
+                ? "Leave port empty to use the default LDAPS port (636)."
+                : "Leave port empty to use the default LDAP port (389).";
+        }
+
         private void Fetch_Click(object sender, RoutedEventArgs e)
         {
             string server = ServerBox.Text?.Trim();
             string domain = DomainBox.Text?.Trim();
             string adminUser = AdminUserBox.Text?.Trim();
             string adminPass = AdminPasswordBox.Password;
+            bool useLdaps = UseLdapsSelected;
+
+            int port = ReadPort();
+            if (port == -1)
+            {
+                FetchStatus.Text = "Port must be a number between 1 and 65535, or left empty.";
+                return;
+            }
+            int effectivePort = port > 0 ? port : (useLdaps ? 636 : 389);
 
             if (string.IsNullOrWhiteSpace(server) ||
+                string.IsNullOrWhiteSpace(domain) ||
                 string.IsNullOrWhiteSpace(adminUser) ||
                 string.IsNullOrWhiteSpace(adminPass))
             {
-                FetchStatus.Text = "Enter server, admin username and password first.";
+                FetchStatus.Text = "Enter server, domain, admin username and password first.";
                 return;
             }
 
-            // ACCESS CHECK: once the system is configured, only a member of the saved
-            // admin group may fetch the group list. On first-time setup this is skipped
-            // so the initial admin can get started.
+            // ACCESS CHECK: once configured, only a member of the saved admin group
+            // may fetch. On first-time setup this is skipped.
             if (_current.IsConfigured)
             {
                 string accessError;
                 bool isAdmin = AdDirectoryService.ValidateAdminConfig(
-                    server, domain, adminUser, adminPass, _current.GroupAdmin, out accessError);
+                    server, domain, effectivePort, useLdaps,
+                    adminUser, adminPass, _current.GroupAdmin, out accessError);
 
                 if (!isAdmin)
                 {
@@ -102,7 +132,8 @@ namespace GUI_Library
 
             string error;
             var groups = AdDirectoryService.GetAllGroups(
-                server, domain, adminUser, adminPass, out error);
+                server, domain, effectivePort, useLdaps,
+                adminUser, adminPass, out error);
 
             if (error != null)
             {
@@ -116,14 +147,12 @@ namespace GUI_Library
                 return;
             }
 
-            // Remember what was selected so we can keep the selection after refresh.
             string prevOp = OperatorCombo.SelectedItem as string;
             string prevEng = EngineerCombo.SelectedItem as string;
             string prevAdmin = AdminCombo.SelectedItem as string;
 
             PopulateGroupCombos(groups);
 
-            // Restore previous selections if they still exist in the new list.
             if (prevOp != null && groups.Contains(prevOp)) OperatorCombo.SelectedItem = prevOp;
             if (prevEng != null && groups.Contains(prevEng)) EngineerCombo.SelectedItem = prevEng;
             if (prevAdmin != null && groups.Contains(prevAdmin)) AdminCombo.SelectedItem = prevAdmin;
@@ -145,9 +174,16 @@ namespace GUI_Library
             string adminUser = AdminUserBox.Text?.Trim();
             string adminPass = AdminPasswordBox.Password;
             string groupAdmin = AdminCombo.SelectedItem as string;
+            bool useLdaps = UseLdapsSelected;
 
-            // Server, domain and an Admin group are the minimum required so that
-            // someone can always log in as admin afterwards.
+            int port = ReadPort();
+            if (port == -1)
+            {
+                MessageBox.Show("Port must be a number between 1 and 65535, or left empty.");
+                return;
+            }
+            int effectivePort = port > 0 ? port : (useLdaps ? 636 : 389);
+
             if (string.IsNullOrWhiteSpace(server) ||
                 string.IsNullOrWhiteSpace(domain) ||
                 string.IsNullOrWhiteSpace(groupAdmin))
@@ -156,7 +192,6 @@ namespace GUI_Library
                 return;
             }
 
-            // Admin credentials are required to validate the configuration before saving.
             if (string.IsNullOrWhiteSpace(adminUser) || string.IsNullOrWhiteSpace(adminPass))
             {
                 MessageBox.Show("Enter the admin username and password. " +
@@ -165,12 +200,10 @@ namespace GUI_Library
                 return;
             }
 
-            // VALIDATE against AD: credentials must connect AND the admin user must be
-            // a member of the chosen admin group. This blocks a wrong IP/domain and
-            // stops you from locking yourself out.
             string error;
             bool ok = AdDirectoryService.ValidateAdminConfig(
-                server, domain, adminUser, adminPass, groupAdmin, out error);
+                server, domain, effectivePort, useLdaps,
+                adminUser, adminPass, groupAdmin, out error);
 
             if (!ok)
             {
@@ -182,6 +215,8 @@ namespace GUI_Library
             {
                 Server = server,
                 Domain = domain,
+                Port = port,            // 0 when empty = auto
+                UseLdaps = useLdaps,
                 GroupOperator = OperatorCombo.SelectedItem as string ?? "",
                 GroupEngineer = EngineerCombo.SelectedItem as string ?? "",
                 GroupAdmin = groupAdmin
