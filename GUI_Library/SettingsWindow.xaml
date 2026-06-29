@@ -5,7 +5,7 @@
         TextElement.Foreground="{DynamicResource MaterialDesignBody}"
         FontFamily="{materialDesign:MaterialDesignFont}"
         Background="{DynamicResource MaterialDesignPaper}"
-        Title="AD Settings" Height="720" Width="480"
+        Title="AD Settings" Height="760" Width="480"
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize">
     <Grid Margin="24">
         <Grid.RowDefinitions>
@@ -35,7 +35,7 @@
                          Style="{StaticResource MaterialDesignOutlinedTextBox}"
                          Margin="0,0,0,12"/>
 
-                <!-- Protocol + optional port on one row -->
+                <!-- Protocol + required port on one row -->
                 <Grid Margin="0,0,0,12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -52,14 +52,32 @@
                     </ComboBox>
 
                     <TextBox x:Name="PortBox" Grid.Column="2"
-                             materialDesign:HintAssist.Hint="Port (optional)"
+                             materialDesign:HintAssist.Hint="Port"
                              Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
                 </Grid>
 
-                <TextBlock x:Name="PortHint"
-                           Text="Leave port empty to use the default (389 for LDAP, 636 for LDAPS)."
-                           FontSize="11" Opacity="0.6" TextWrapping="Wrap"
-                           Margin="0,0,0,12"/>
+                <!-- CERTIFICATE VALIDATION (only relevant for LDAPS) -->
+                <StackPanel x:Name="CertPanel">
+                    <TextBlock Text="Certificate validation (LDAPS)" FontSize="12"
+                               Margin="0,0,0,4"/>
+                    <ComboBox x:Name="CertModeCombo"
+                              materialDesign:HintAssist.Hint="Certificate validation"
+                              Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                              SelectionChanged="CertMode_SelectionChanged"
+                              Margin="0,0,0,8">
+                        <ComboBoxItem Content="Accept any certificate" IsSelected="True"/>
+                        <ComboBoxItem Content="Trusted certificate (pin thumbprint)"/>
+                        <ComboBoxItem Content="System / CA trust"/>
+                    </ComboBox>
+
+                    <TextBox x:Name="ThumbprintBox"
+                             materialDesign:HintAssist.Hint="Certificate thumbprint"
+                             Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                             Margin="0,0,0,4"/>
+
+                    <TextBlock x:Name="CertHint" Text="" FontSize="11" Opacity="0.6"
+                               TextWrapping="Wrap" Margin="0,0,0,12"/>
+                </StackPanel>
 
                 <!-- ADMIN CREDENTIALS (used only to fetch groups, never stored) -->
                 <TextBlock Text="ADMIN CREDENTIALS (to fetch groups)" FontWeight="Bold"
@@ -72,13 +90,24 @@
 
                 <PasswordBox x:Name="AdminPasswordBox"
                              materialDesign:HintAssist.Hint="Admin password"
-                             Style="{StaticResource MaterialDesignOutlinedPasswordBox}"
+                             Style="{StaticResource MaterialDesignOutlinedRevealPasswordBox}"
                              Margin="0,0,0,12"/>
 
-                <Button x:Name="FetchButton" Content="FETCH GROUPS"
-                        Click="Fetch_Click"
-                        Style="{StaticResource MaterialDesignRaisedButton}"
-                        HorizontalAlignment="Left" Margin="0,0,0,8"/>
+                <!-- Fetch button with an inline spinner shown while working -->
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                    <Button x:Name="FetchButton" Content="FETCH GROUPS"
+                            Click="Fetch_Click"
+                            Style="{StaticResource MaterialDesignRaisedButton}"
+                            HorizontalAlignment="Left"/>
+
+                    <ProgressBar x:Name="FetchSpinner"
+                                 Style="{StaticResource MaterialDesignCircularProgressBar}"
+                                 Value="0" IsIndeterminate="True"
+                                 Width="22" Height="22"
+                                 Margin="12,0,0,0"
+                                 VerticalAlignment="Center"
+                                 Visibility="Collapsed"/>
+                </StackPanel>
 
                 <TextBlock x:Name="FetchStatus" Text="" FontSize="12"
                            Opacity="0.8" TextWrapping="Wrap" Margin="0,0,0,12"/>
@@ -117,7 +146,7 @@
             <Button Content="CANCEL" Click="Cancel_Click"
                     Style="{StaticResource MaterialDesignOutlinedButton}"
                     Width="110" Margin="0,0,8,0"/>
-            <Button Content="SAVE" Click="Save_Click"
+            <Button x:Name="SaveButton" Content="SAVE" Click="Save_Click"
                     Style="{StaticResource MaterialDesignRaisedButton}"
                     Width="110"/>
         </StackPanel>

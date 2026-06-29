@@ -60,18 +60,28 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AdDirectoryService.cs" />
+    <Compile Include="AdReader.cs" />
     <Compile Include="AdSettings.cs" />
-    <Compile Include="AdUserService.cs" />
+    <Compile Include="AdAuthenticator.cs" />
     <Compile Include="AppSession.cs" />
     <Compile Include="AuditLogger.cs" />
     <Compile Include="AuthenticatedUser.cs" />
-    <Compile Include="Booltostatusbrush.cs" />
+    <Compile Include="BoolToStatusBrush.cs" />
     <Compile Include="BoolToVisibilityConverters.cs" />
+    <Compile Include="CertValidation.cs" />
     <Compile Include="IUserService.cs" />
+    <Compile Include="LocalUser.cs" />
     <Compile Include="LocalUserService.cs" />
+    <Compile Include="LocalUserStore.cs" />
+    <Compile Include="LocalUsersWindow.xaml.cs">
+      <DependentUpon>LocalUsersWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="LoginService.cs" />
     <Compile Include="LoginWindow.xaml.cs">
       <DependentUpon>LoginWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="ResetPasswordWindow.xaml.cs">
+      <DependentUpon>ResetPasswordWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="Permission.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -81,7 +91,15 @@
     <Compile Include="UserRole.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Page Include="LocalUsersWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="LoginWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="ResetPasswordWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

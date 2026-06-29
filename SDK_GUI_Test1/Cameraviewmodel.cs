@@ -375,14 +375,9 @@ namespace SDK_GUI_Test1
 
             // The app must be configured (AD details entered) before anyone can log in.
             var userService = _session.CreateUserService();
-            if (userService == null)
-            {
-                MessageBox.Show("Active Directory is not configured yet. " +
-                                "Open the Settings tab to set it up first.");
-                return;
-            }
 
             var dlg = new LoginWindow(userService) { Owner = Application.Current?.MainWindow };
+
             if (dlg.ShowDialog() == true)
             {
                 _session.User = dlg.AuthenticatedUser;

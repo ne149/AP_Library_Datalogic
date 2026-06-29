@@ -7,32 +7,49 @@
         Background="{DynamicResource MaterialDesignPaper}"
         Title="Log ind" Height="260" Width="360"
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize">
-    <Grid Margin="24">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <Grid>
+        <Grid Margin="24">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="Log in" FontSize="20" FontWeight="Bold" Margin="0,0,0,16"/>
+            <TextBlock Grid.Row="0" Text="Log in" FontSize="20" FontWeight="Bold" Margin="0,0,0,16"/>
 
-        <TextBox Grid.Row="1" x:Name="UsernameBox"
-                 materialDesign:HintAssist.Hint="Username"
-                 Style="{StaticResource MaterialDesignOutlinedTextBox}"
-                 Margin="0,0,0,12"/>
+            <TextBox Grid.Row="1" x:Name="UsernameBox"
+                     materialDesign:HintAssist.Hint="Username"
+                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                     Margin="0,0,0,12"/>
 
-        <PasswordBox Grid.Row="2" x:Name="PasswordBox"
-                materialDesign:HintAssist.Hint="Password"
-                Style="{StaticResource MaterialDesignOutlinedPasswordBox}"
-                KeyDown="PasswordBox_KeyDown"/>
+            <PasswordBox Grid.Row="2" x:Name="PasswordBox"
+                    materialDesign:HintAssist.Hint="Password"
+                    Style="{StaticResource MaterialDesignOutlinedRevealPasswordBox}"
+                    KeyDown="PasswordBox_KeyDown"/>
 
-        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="CANCEL" Click="Cancel_Click"
-                    Style="{StaticResource MaterialDesignOutlinedButton}" Width="110" Margin="0,0,8,0"/>
-            <Button Content="LOG IND" Click="Ok_Click"
-                    Style="{StaticResource MaterialDesignRaisedButton}" Width="110"/>
-        </StackPanel>
+            <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="CancelButton" Content="CANCEL" Click="Cancel_Click"
+                        Style="{StaticResource MaterialDesignOutlinedButton}" Width="110" Margin="0,0,8,0"/>
+                <Button x:Name="OkButton" Content="LOG IND" Click="Ok_Click"
+                        Style="{StaticResource MaterialDesignRaisedButton}" Width="110"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- BUSY OVERLAY: shown while a login attempt is running (AD can be slow to
+             time out when it is unreachable). Dims the form and shows a spinner so
+             the user knows the app is working, not frozen. -->
+        <Grid x:Name="BusyOverlay" Visibility="Collapsed"
+              Background="#99000000">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <ProgressBar Style="{StaticResource MaterialDesignCircularProgressBar}"
+                             IsIndeterminate="True"
+                             Width="48" Height="48"
+                             HorizontalAlignment="Center"/>
+                <TextBlock Text="Logging in…" Margin="0,12,0,0"
+                           Foreground="White" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Grid>
     </Grid>
 </Window>

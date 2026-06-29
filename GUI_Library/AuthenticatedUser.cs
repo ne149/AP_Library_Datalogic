@@ -38,22 +38,19 @@ namespace GUI_Library
 
         public bool Has(Permission p) => Permissions.HasFlag(p);
 
-        // Name used in the audit log: "nisanth (Tekniker)".
+        // Name used in the audit log: "nisanth (Engineer)".
         public string AuditName => $"{Username} ({_displayRole})";
 
         /// <summary>
-        /// Derives a display name from the permission flags for AD users.
+        /// Derives a display name from the permission flags for AD users, matching the
+        /// three roles (Operator / Engineer / Admin). Admin is checked first because it
+        /// is a superset of the others.
         /// </summary>
         private static string ResolveDisplayName(Permission p)
         {
-            bool gauge = p.HasFlag(Permission.CanEditGauge);
-            bool blob = p.HasFlag(Permission.CanEditBlob);
-            bool audit = p.HasFlag(Permission.CanViewAudit);
-
-            if (audit) return "Admin";
-            if (gauge && blob) return "Vision A+E";
-            if (gauge) return "Vision A";
-            if (blob) return "Vision E";
+            if (p.HasFlag(Permission.CanViewAudit)) return "Admin";
+            if (p.HasFlag(Permission.CanEditGauge)) return "Operator";
+            if (p.HasFlag(Permission.CanEditBlob)) return "Engineer";
             if (p.HasFlag(Permission.CanOperate)) return "Operator";
             return "Unknown";
         }

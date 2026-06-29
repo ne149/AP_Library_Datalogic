@@ -6,7 +6,7 @@ using System.Windows.Data;
 namespace GUI_Library
 {
     /// <summary>true -> Visible, false -> Collapsed</summary>
-    public class BoolToVis : IValueConverter
+    public class BoolToVis : IValueConverter // Used to make things visible (e.g. settings tab when admin is logged in)
     {
         public object Convert(object value, Type t, object p, CultureInfo c)
             => (value is bool b && b) ? Visibility.Visible : Visibility.Collapsed;
@@ -15,7 +15,7 @@ namespace GUI_Library
     }
 
     /// <summary>true -> Collapsed, false -> Visible (reversed)</summary>
-    public class InverseBoolToVis : IValueConverter
+    public class InverseBoolToVis : IValueConverter // Used to make things not visible (e.g. not active text only visible when the camera is not active)
     {
         public object Convert(object value, Type t, object p, CultureInfo c)
             => (value is bool b && b) ? Visibility.Collapsed : Visibility.Visible;

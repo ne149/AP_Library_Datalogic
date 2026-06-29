@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.DirectoryServices.Protocols;
 using System.Net;
+using System.Security.Cryptography.X509Certificates;
 
 namespace GUI_Library
 {
@@ -11,20 +12,22 @@ namespace GUI_Library
     /// Connects to an on-premise Active Directory, validates credentials, and maps
     /// AD group membership to Permission flags.
     ///
-    /// Server, domain, port/protocol and the role->group mapping are NOT hardcoded
-    /// here - they are passed in from the customer-specific project so GUI_Library
-    /// stays generic and reusable across customers.
+    /// Server, domain, port/protocol, certificate policy and the role->group
+    /// mapping are NOT hardcoded here - they are passed in from the customer-
+    /// specific project so GUI_Library stays generic and reusable.
     ///
     /// Uses LdapConnection with a simple (Basic) bind - no Kerberos - so it works
     /// on machines that are not domain-joined. The user's own credentials are used
     /// to bind, which both validates the login AND lets us read their groups.
     /// </summary>
-    public class AdUserService : IUserService
+    public class AdAuthenticator : IUserService
     {
         private readonly string _server;
         private readonly string _domain;
         private readonly int _port;
         private readonly bool _useLdaps;
+        private readonly CertValidationMode _certMode;
+        private readonly string _trustedThumbprint;
         private readonly string _groupOperator;
         private readonly string _groupEngineer;
         private readonly string _groupAdmin;
@@ -34,11 +37,15 @@ namespace GUI_Library
         /// <param name="groupOperator">AD group name that grants the Operator role</param>
         /// <param name="groupEngineer">AD group name that grants the Engineer role</param>
         /// <param name="groupAdmin">AD group name that grants the Admin role</param>
-        /// <param name="port">Port to use. 0 = auto (389 LDAP / 636 LDAPS).</param>
+        /// <param name="port"> Port to connect (389 for LDAP / 636 for LDAPS).</param>
         /// <param name="useLdaps">True for LDAPS (TLS), false for plain LDAP.</param>
-        public AdUserService(string server, string domain,
+        /// <param name="certMode">How to validate the LDAPS server certificate.</param>
+        /// <param name="trustedThumbprint">Pinned thumbprint for TrustedCert mode.</param>
+        public AdAuthenticator(string server, string domain,
                              string groupOperator, string groupEngineer, string groupAdmin,
-                             int port = 0, bool useLdaps = false)
+                             int port = 0, bool useLdaps = false,
+                             CertValidationMode certMode = CertValidationMode.AcceptAll,
+                             string trustedThumbprint = null)
         {
             _server = server;
             _domain = domain;
@@ -47,35 +54,102 @@ namespace GUI_Library
             _groupAdmin = groupAdmin;
             _useLdaps = useLdaps;
             _port = port > 0 ? port : (useLdaps ? 636 : 389);
+            _certMode = certMode;
+            _trustedThumbprint = CertValidation.NormalizeThumbprint(trustedThumbprint);
         }
 
+        /// <summary>
+        /// Simple login: returns the user on success, null on any failure
+        /// (bad credentials OR unreachable server - the two are not distinguished).
+        /// Kept for callers that don't need fallback logic.
+        /// </summary>
         public AuthenticatedUser Login(string username, string password)
         {
-            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
-                return null;
+            return TryLogin(username, password, out _);
+        }
 
+        /// <summary>
+        /// Login that reports whether the server was REACHABLE, so a caller can
+        /// decide whether to fall back to local users.
+        ///
+        ///   reachable = true,  return != null -> valid AD login
+        ///   reachable = true,  return == null -> server answered, but bad
+        ///                                         credentials or no mapped group
+        ///   reachable = false, return == null -> could not reach/bind the server
+        ///                                         at all (down, wrong port, TLS
+        ///                                         failure, cert rejected, DNS, or
+        ///                                         the server identity did not match)
+        ///
+        /// The reachable=true + null case must NOT trigger fallback: AD has spoken.
+        /// </summary>
+        public AuthenticatedUser TryLogin(string username, string password, out bool reachable)
+        {
+            reachable = false;
+
+            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+            {
+                reachable = true;
+                return null;
+            }
+
+            LdapConnection connection = null;
             try
             {
                 var identifier = new LdapDirectoryIdentifier(_server, _port);
-                using (var connection = new LdapConnection(identifier))
+                connection = new LdapConnection(identifier);
+                connection.AuthType = AuthType.Basic;
+                connection.SessionOptions.ProtocolVersion = 3;
+
+                if (_useLdaps)
                 {
-                    connection.AuthType = AuthType.Basic;
-                    connection.SessionOptions.ProtocolVersion = 3;
+                    connection.SessionOptions.SecureSocketLayer = true;
+                    CertValidation.Apply(connection, _certMode, _trustedThumbprint);
+                }
 
-                    if (_useLdaps)
-                    {
-                        connection.SessionOptions.SecureSocketLayer = true;
-                        connection.SessionOptions.VerifyServerCertificate =
-                            (conn, cert) => true;
-                    }
+                connection.Credential = new NetworkCredential(username.Trim(), password);
+                connection.Bind();
 
-                    // Bind WITH the user's credentials. If they are wrong, Bind throws
-                    // and we return null (caught below) - this is the login check.
-                    connection.Credential = new NetworkCredential(username.Trim(), password);
-                    connection.Bind();
+                // The server must be addressed by its exact short hostname or its IP.
+                // A loose name (domain label, FQDN, etc.) is treated as not reachable,
+                // so the user just sees the normal "could not reach the server" result.
+                if (!AdReader.VerifyServerIdentity(connection, _server))
+                {
+                    connection.Dispose();
+                    reachable = false;
+                    return null;
+                }
+            }
+            catch (LdapException ex)
+            {
+                connection?.Dispose();
 
+                // 49 = invalidCredentials -> the server answered, so it IS reachable.
+                if (ex.ErrorCode == 49)
+                {
+                    reachable = true;
+                    return null;
+                }
+
+                // 81 = server down, 91 = cannot connect, plus TLS/cert/connect
+                // failures -> the server could not be reached or trusted.
+                reachable = false;
+                return null;
+            }
+            catch (Exception)
+            {
+                // Anything else (DNS, socket, TLS, pinned-cert mismatch) -> unreachable.
+                connection?.Dispose();
+                reachable = false;
+                return null;
+            }
+
+            // Bind succeeded AND identity verified -> the server is definitely reachable.
+            reachable = true;
+            try
+            {
+                using (connection)
+                {
                     var groups = GetUserGroups(connection, username.Trim());
-
                     Permission permissions = MapGroupsToPermissions(groups);
 
                     if (permissions == Permission.None)
@@ -86,7 +160,6 @@ namespace GUI_Library
             }
             catch (Exception)
             {
-                // Bad credentials, unreachable server, or wrong port all land here.
                 return null;
             }
         }
@@ -125,6 +198,7 @@ namespace GUI_Library
             return groups;
         }
 
+        // The permission that the users can have
         private Permission MapGroupsToPermissions(List<string> groups)
         {
             Permission permissions = Permission.None;
@@ -134,7 +208,6 @@ namespace GUI_Library
                 if (!string.IsNullOrWhiteSpace(_groupAdmin) &&
                     group.Equals(_groupAdmin, StringComparison.OrdinalIgnoreCase))
                 {
-                    // Admin gets everything
                     return Permission.CanOperate
                          | Permission.CanEditGauge
                          | Permission.CanEditBlob
@@ -164,7 +237,7 @@ namespace GUI_Library
 
         // ---------- helpers ----------
 
-        private static string DomainToBaseDn(string domain)
+        private static string DomainToBaseDn(string domain) // Setting DC in front of domain: required for LDAP
         {
             if (string.IsNullOrWhiteSpace(domain))
                 return "";
@@ -180,7 +253,7 @@ namespace GUI_Library
             return sb.ToString();
         }
 
-        private static string DnToCn(string dn)
+        private static string DnToCn(string dn) // setting the group name to only the name of the group (AD gives the full name, eg. CN=NZVISADM). We only want the group name ie after =.
         {
             if (string.IsNullOrWhiteSpace(dn)) return null;
             string first = dn.Split(',')[0];
@@ -188,7 +261,7 @@ namespace GUI_Library
             return eq < 0 ? null : first.Substring(eq + 1).Trim();
         }
 
-        private static string EscapeFilter(string value)
+        private static string EscapeFilter(string value) // Avoiding these values as LDAP uses them as hex codes. 
         {
             if (string.IsNullOrEmpty(value)) return value;
             return value

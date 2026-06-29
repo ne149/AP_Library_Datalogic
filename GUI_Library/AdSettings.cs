@@ -7,17 +7,40 @@ using System.Runtime.Serialization.Json;
 namespace GUI_Library
 {
     /// <summary>
+    /// How the client validates the AD server's TLS certificate when using LDAPS.
+    /// Only relevant when UseLdaps is true; ignored for plain LDAP.
+    /// </summary>
+    public enum CertValidationMode
+    {
+        // Accept ANY server certificate. Encrypts the connection but does NOT
+        // verify the server's identity (no MITM protection). Fine on a closed
+        // network / for testing. This is the legacy behaviour.
+        AcceptAll = 0,
+
+        // Accept ONLY a certificate whose thumbprint matches TrustedThumbprint
+        // (certificate pinning). MITM protection without needing a CA, but the
+        // pinned thumbprint must be updated when the server cert is renewed.
+        TrustedCert = 1,
+
+        // Let Windows validate the certificate normally against the machine's
+        // trust store. Requires the server cert (or its issuing CA) to be trusted
+        // on THIS client machine. The "proper" option when an internal CA exists.
+        SystemTrust = 2
+    }
+
+    /// <summary>
     /// Customer-specific AD configuration: server, domain, optional port/protocol,
-    /// and which AD group maps to which application role. Stored as JSON next to
-    /// the running .exe so it survives restarts and is configured per installation.
+    /// certificate-validation policy, and which AD group maps to which role.
+    /// Stored as JSON next to the running .exe so it survives restarts and is
+    /// configured per installation.
     ///
     /// CONNECTION PROTOCOL:
-    ///  - LDAP  (UseLdaps = false): no encryption. Simple bind, default port 389.
-    ///  - LDAPS (UseLdaps = true) : TLS encrypts the whole connection, default 636.
+    ///  - LDAP  (UseLdaps = false): no encryption. Simple bind - port 389.
+    ///  - LDAPS (UseLdaps = true) : TLS encrypts the whole connection - port 636.
     ///  Both use a simple (Basic) bind - no Kerberos - so it works reliably on
     ///  machines that are NOT domain-joined and avoids time-sync (Kerberos) issues.
     /// </summary>
-    [DataContract]
+    [DataContract] // This means that the class can be used with JSON (All DataMember ends in JSON)
     public class AdSettings
     {
         [DataMember(Name = "server")]
@@ -26,7 +49,8 @@ namespace GUI_Library
         [DataMember(Name = "domain")]
         public string Domain { get; set; } = "";
 
-        // Optional explicit port. 0 = auto (389 for LDAP, 636 for LDAPS).
+        
+
         [DataMember(Name = "port")]
         public int Port { get; set; } = 0;
 
@@ -34,23 +58,41 @@ namespace GUI_Library
         [DataMember(Name = "useLdaps")]
         public bool UseLdaps { get; set; } = false;
 
-        // AD group name that grants the Operator role (operate + gauge + save).
+        // How to validate the LDAPS server certificate. Stored as int so old
+        // JSON files (without this field) load as 0 = AcceptAll = legacy behaviour.
+        [DataMember(Name = "certValidationMode")]
+        public int CertValidationModeRaw { get; set; } = (int)CertValidationMode.AcceptAll;
+
+        // The certificate thumbprint to pin against when CertValidationMode is
+        // TrustedCert. Hex string, case/space-insensitive when compared.
+        [DataMember(Name = "trustedThumbprint")]
+        public string TrustedThumbprint { get; set; } = "";
+
+        // AD group name that grants the Operator role.
         [DataMember(Name = "groupOperator")]
         public string GroupOperator { get; set; } = "";
 
-        // AD group name that grants the Engineer role (operate + blob + save).
+        // AD group name that grants the Engineer role.
         [DataMember(Name = "groupEngineer")]
         public string GroupEngineer { get; set; } = "";
 
-        // AD group name that grants the Admin role (everything).
+        // AD group name that grants the Admin role.
         [DataMember(Name = "groupAdmin")]
         public string GroupAdmin { get; set; } = "";
 
         /// <summary>
-        /// Returns the port to actually use: the explicit Port if set (> 0),
-        /// otherwise the default for the chosen protocol (636 LDAPS / 389 LDAP).
+        /// Translating cert modes between number and enum. Unknown values fall back to AcceptAll.
         /// </summary>
-        public int EffectivePort => Port > 0 ? Port : (UseLdaps ? 636 : 389);
+        public CertValidationMode CertValidationMode
+        {
+            get
+            {
+                return Enum.IsDefined(typeof(CertValidationMode), CertValidationModeRaw)
+                    ? (CertValidationMode)CertValidationModeRaw
+                    : CertValidationMode.AcceptAll;
+            }
+            set { CertValidationModeRaw = (int)value; }
+        }
 
         /// <summary>
         /// True once the minimum required fields are filled in. Used to decide
@@ -69,7 +111,7 @@ namespace GUI_Library
         /// <summary>
         /// Loads settings from disk. Returns an empty (unconfigured) AdSettings if
         /// the file does not exist or cannot be read - never throws. Old files
-        /// without the new port/useLdaps fields load fine (defaults are used).
+        /// without the new fields load fine (defaults are used).
         /// </summary>
         public static AdSettings Load()
         {
