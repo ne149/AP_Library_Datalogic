@@ -10,6 +10,9 @@ namespace SDK_GUI_Test1
 {
     /// <summary>
     /// Interaction logic for App.xaml
+    /// This is where the application starts. It has most of the info from app.xaml.
+    /// Everu WPF app has this. 
+    /// Startup code are usually in here. 
     /// </summary>
     public partial class App : Application
     {

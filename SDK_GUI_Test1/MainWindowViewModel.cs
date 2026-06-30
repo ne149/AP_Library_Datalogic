@@ -30,16 +30,12 @@ namespace SDK_GUI_Test1
         {
             Session = new AppSession();
 
-            Cameras = new ObservableCollection<CameraViewModel>
-            {
-                // Active camera (the one we are working on now).
-                new CameraViewModel(Session, "Label Inspection : Camera 1", "192.168.1.128", 10001, active: true),
-                // Empty slots - added when the real cameras are connected.
-                new CameraViewModel(Session, "Camera 2", "192.168.1.129", 10010, active: false),
-                new CameraViewModel(Session, "Camera 3", "192.168.1.130", 10010, active: false),
-                new CameraViewModel(Session, "Camera 4", "192.168.1.131", 10010, active: false),
-                new CameraViewModel(Session, "Camera 5", "192.168.1.132", 10010, active: false),
-            };
+            // Load the camera list from cameras.json. The customer can edit IP address, port and name. 
+            var config = CameraConfig.Load();
+
+            Cameras = new ObservableCollection<CameraViewModel>();
+            foreach (var cam in config.Cameras)
+                Cameras.Add(new CameraViewModel(Session, cam.Name, cam.Ip, cam.Port, cam.Active));
 
             OpenSettingsCommand = new RelayCommand(OpenSettings);
             OpenUsersCommand = new RelayCommand(OpenUsers);

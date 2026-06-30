@@ -4,9 +4,12 @@ using System.Windows;
 namespace GUI_Library
 {
     /// <summary>
-    /// Tiny dialog to enter a new password. A PasswordBox cannot be data-bound
+    /// Small dialog to enter a new password, which is used when admin resets a local user's password. 
+    /// A PasswordBox cannot be data-bound
     /// (by design, for security), so this exposes the entered value as a plain
     /// property the caller reads after the dialog returns true.
+    /// 
+    /// This dialog only collects the password. The security of the password is set in LocalUserStore.cs
     /// </summary>
     public partial class ResetPasswordWindow : Window
     {

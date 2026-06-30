@@ -59,7 +59,7 @@
                             <Button Grid.Column="2" Content="Save Program"
                                 Command="{Binding SaveProgramCommand}"
                                 IsEnabled="{Binding CanSaveProgram}"
-                                Style="{StaticResource MaterialDesignOutlinedButton}" Click="Button_Click"/>
+                                Style="{StaticResource MaterialDesignOutlinedButton}"/>
                         </Grid>
                         <TextBlock Text="{Binding CurrentUser, StringFormat=Logged in as: {0}}"
                                Visibility="{Binding IsLoggedIn, Converter={StaticResource BoolToVis}}"
@@ -179,7 +179,7 @@
                             VisionDeviceWrapper="{Binding Device}"
                             ExternalTrigger="{Binding ExternalTrigger}"
                             IsEnabled="{Binding CanEditBlob}"
-                            EnableKeyboard="True" Loaded="PropertyTolerance_Loaded"/>
+                            EnableKeyboard="True"/>
                     </StackPanel>
                 </materialDesign:Card>
             </StackPanel>

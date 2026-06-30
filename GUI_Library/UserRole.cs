@@ -3,7 +3,7 @@ namespace GUI_Library
 {
     /// <summary>
     /// The roles and their permissions. This is where a role is assigned permissions.
-    /// These three roles match the AD group mapping in AdUserService.MapGroupsToPermissions,
+    /// These three roles match the AD group mapping in AdAuthenticator.MapGroupsToPermissions,
     /// so a local user and an AD user with the same role get identical permissions.
     /// Add a new role by adding an enum value and a case in Permissions().
     /// </summary>

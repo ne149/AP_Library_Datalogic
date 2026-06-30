@@ -7,6 +7,8 @@ namespace GUI_Library
     /// The concrete actions the app protects. Flags enum so a role can have
     /// several permissions combined. Check with HasFlag in the ViewModel.
     /// This is the different permission "tags" users have. 
+    /// 
+    /// Each group is set up bitwise, so that a user can be in multiple groups. 
     /// </summary>
     [Flags]
     public enum Permission
