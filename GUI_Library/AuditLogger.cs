@@ -27,7 +27,7 @@ namespace GUI_Library
     /// </summary>
     public static class AuditLogger
     {
-        private static readonly string LogDir = @"C:\1349\AuditLog";
+        private static readonly string LogDir = @"C:\AuditLog";
         private static readonly object _lock = new object();
 
         private const string Header =
@@ -74,7 +74,7 @@ namespace GUI_Library
                 if (TryAppend(path, line, headerIfNew: true))
                     return;
 
-                // The main file is locked (Excel). Save to fallback so nothing is lost.
+                // The main file is locked (can happen when it is open). Save to fallback so nothing is lost.
                 string fallback = Path.Combine(LogDir, "audit_" + dateTag + ".pending.csv");
                 bool fallbackOk = TryAppend(fallback, line, headerIfNew: true);
                 if (fallbackOk) HasPending = true;
@@ -150,7 +150,7 @@ namespace GUI_Library
 
         // ---------- helpers ----------
 
-        private static IEnumerable<string> ReadDataLines(string file)
+        private static IEnumerable<string> ReadDataLines(string file) // Used for the backup file to merge with the main file
         {
             string[] lines = File.ReadAllLines(file, Encoding.UTF8);
             for (int i = 0; i < lines.Length; i++)
@@ -161,7 +161,7 @@ namespace GUI_Library
             }
         }
 
-        private static DateTime ParseTimestamp(string row)
+        private static DateTime ParseTimestamp(string row) // Used to sort the time when merging files
         {
             // The first field is the timestamp. It is not escaped (no comma in the
             // date), so we can take everything before the first comma.
@@ -170,7 +170,7 @@ namespace GUI_Library
             return DateTime.TryParse(ts, out var dt) ? dt : DateTime.MinValue;
         }
 
-        private static bool IsLocked(string path)
+        private static bool IsLocked(string path) // Checking if the file is locked (e.g. the file is locked if it is open --> not able to write to the file)
         {
             try
             {
@@ -181,12 +181,12 @@ namespace GUI_Library
             catch { return true; }
         }
 
-        private static void TryDelete(string path)
+        private static void TryDelete(string path) // Deleting extra file after merge
         {
             try { if (File.Exists(path)) File.Delete(path); } catch { }
         }
 
-        private static bool TryAppend(string path, string content, bool headerIfNew)
+        private static bool TryAppend(string path, string content, bool headerIfNew) // Appending to the file
         {
             for (int attempt = 0; attempt < MaxRetries; attempt++)
             {
@@ -215,7 +215,7 @@ namespace GUI_Library
             return false;
         }
 
-        private static string Escape(string field)
+        private static string Escape(string field) // Cleaning each field before writing to CSV - a "," will not destroy the CSV setup
         {
             if (string.IsNullOrEmpty(field)) return "";
             bool needsQuotes = field.Contains(",") || field.Contains("\"")

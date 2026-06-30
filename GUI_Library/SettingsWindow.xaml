@@ -1,0 +1,154 @@
+<Window x:Class="GUI_Library.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        TextElement.Foreground="{DynamicResource MaterialDesignBody}"
+        FontFamily="{materialDesign:MaterialDesignFont}"
+        Background="{DynamicResource MaterialDesignPaper}"
+        Title="AD Settings" Height="760" Width="480"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- TITLE -->
+        <TextBlock Grid.Row="0" Text="Active Directory Settings"
+                   FontSize="20" FontWeight="Bold" Margin="0,0,0,16"/>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+
+                <!-- CONNECTION -->
+                <TextBlock Text="CONNECTION" FontWeight="Bold" FontSize="12"
+                           Opacity="0.7" Margin="0,0,0,8"/>
+
+                <TextBox x:Name="ServerBox"
+                         materialDesign:HintAssist.Hint="AD Server (IP or hostname)"
+                         Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                         Margin="0,0,0,12"/>
+
+                <TextBox x:Name="DomainBox"
+                         materialDesign:HintAssist.Hint="Domain (e.g. company.local)"
+                         Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                         Margin="0,0,0,12"/>
+
+                <!-- Protocol + required port on one row -->
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition Width="140"/>
+                    </Grid.ColumnDefinitions>
+
+                    <ComboBox x:Name="ProtocolCombo" Grid.Column="0"
+                              materialDesign:HintAssist.Hint="Protocol"
+                              Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                              SelectionChanged="Protocol_SelectionChanged">
+                        <ComboBoxItem Content="LDAP (unencrypted)" IsSelected="True"/>
+                        <ComboBoxItem Content="LDAPS (TLS)"/>
+                    </ComboBox>
+
+                    <TextBox x:Name="PortBox" Grid.Column="2"
+                             materialDesign:HintAssist.Hint="Port"
+                             Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+                </Grid>
+
+                <!-- CERTIFICATE VALIDATION (only relevant for LDAPS) -->
+                <StackPanel x:Name="CertPanel">
+                    <TextBlock Text="Certificate validation (LDAPS)" FontSize="12"
+                               Margin="0,0,0,4"/>
+                    <ComboBox x:Name="CertModeCombo"
+                              materialDesign:HintAssist.Hint="Certificate validation"
+                              Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                              SelectionChanged="CertMode_SelectionChanged"
+                              Margin="0,0,0,8">
+                        <ComboBoxItem Content="Accept any certificate" IsSelected="True"/>
+                        <ComboBoxItem Content="Trusted certificate (pin thumbprint)"/>
+                        <ComboBoxItem Content="System / CA trust"/>
+                    </ComboBox>
+
+                    <TextBox x:Name="ThumbprintBox"
+                             materialDesign:HintAssist.Hint="Certificate thumbprint"
+                             Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                             Margin="0,0,0,4"/>
+
+                    <TextBlock x:Name="CertHint" Text="" FontSize="11" Opacity="0.6"
+                               TextWrapping="Wrap" Margin="0,0,0,12"/>
+                </StackPanel>
+
+                <!-- ADMIN CREDENTIALS (used only to fetch groups, never stored) -->
+                <TextBlock Text="ADMIN CREDENTIALS (to fetch groups)" FontWeight="Bold"
+                           FontSize="12" Opacity="0.7" Margin="0,8,0,8"/>
+
+                <TextBox x:Name="AdminUserBox"
+                         materialDesign:HintAssist.Hint="Admin username"
+                         Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                         Margin="0,0,0,12"/>
+
+                <PasswordBox x:Name="AdminPasswordBox"
+                             materialDesign:HintAssist.Hint="Admin password"
+                             Style="{StaticResource MaterialDesignOutlinedRevealPasswordBox}"
+                             Margin="0,0,0,12"/>
+
+                <!-- Fetch button with an inline spinner shown while working -->
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                    <Button x:Name="FetchButton" Content="FETCH GROUPS"
+                            Click="Fetch_Click"
+                            Style="{StaticResource MaterialDesignRaisedButton}"
+                            HorizontalAlignment="Left"/>
+
+                    <ProgressBar x:Name="FetchSpinner"
+                                 Style="{StaticResource MaterialDesignCircularProgressBar}"
+                                 Value="0" IsIndeterminate="True"
+                                 Width="22" Height="22"
+                                 Margin="12,0,0,0"
+                                 VerticalAlignment="Center"
+                                 Visibility="Collapsed"/>
+                </StackPanel>
+
+                <TextBlock x:Name="FetchStatus" Text="" FontSize="12"
+                           Opacity="0.8" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                <!-- ROLE -> GROUP MAPPING -->
+                <TextBlock Text="ROLE MAPPING" FontWeight="Bold" FontSize="12"
+                           Opacity="0.7" Margin="0,8,0,8"/>
+                <TextBlock Text="Select which AD group grants each role."
+                           FontSize="12" Opacity="0.6" TextWrapping="Wrap"
+                           Margin="0,0,0,12"/>
+
+                <TextBlock Text="Operator (operate + gauge)" FontSize="12" Margin="0,0,0,4"/>
+                <ComboBox x:Name="OperatorCombo"
+                          materialDesign:HintAssist.Hint="Operator group"
+                          Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                          Margin="0,0,0,12"/>
+
+                <TextBlock Text="Engineer (operate + blob)" FontSize="12" Margin="0,0,0,4"/>
+                <ComboBox x:Name="EngineerCombo"
+                          materialDesign:HintAssist.Hint="Engineer group"
+                          Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                          Margin="0,0,0,12"/>
+
+                <TextBlock Text="Admin (full access)" FontSize="12" Margin="0,0,0,4"/>
+                <ComboBox x:Name="AdminCombo"
+                          materialDesign:HintAssist.Hint="Admin group"
+                          Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                          Margin="0,0,0,12"/>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- BUTTONS -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal"
+                    HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="CANCEL" Click="Cancel_Click"
+                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                    Width="110" Margin="0,0,8,0"/>
+            <Button x:Name="SaveButton" Content="SAVE" Click="Save_Click"
+                    Style="{StaticResource MaterialDesignRaisedButton}"
+                    Width="110"/>
+        </StackPanel>
+    </Grid>
+</Window>

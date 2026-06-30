@@ -2,15 +2,16 @@
 namespace GUI_Library
 {
     /// <summary>
-    /// The roles and their permissions. This is the where the user is assigned permissions. 
+    /// The roles and their permissions. This is where a role is assigned permissions.
+    /// These three roles match the AD group mapping in AdAuthenticator.MapGroupsToPermissions,
+    /// so a local user and an AD user with the same role get identical permissions.
     /// Add a new role by adding an enum value and a case in Permissions().
     /// </summary>
     public enum UserRole
     {
-        Operator,
-        Tekniker,
-        VisionMand,
-        Admin
+        Operator,   // operate + gauge
+        Engineer,   // operate + blob
+        Admin       // full access
     }
 
     public static class UserRoleExtensions
@@ -20,14 +21,11 @@ namespace GUI_Library
             switch (role)
             {
                 case UserRole.Operator:
-                    return Permission.CanOperate;
-
-                case UserRole.Tekniker:
                     return Permission.CanOperate
                          | Permission.CanEditGauge
                          | Permission.CanSaveProgram;
 
-                case UserRole.VisionMand:
+                case UserRole.Engineer:
                     return Permission.CanOperate
                          | Permission.CanEditBlob
                          | Permission.CanSaveProgram;
@@ -44,14 +42,13 @@ namespace GUI_Library
             }
         }
 
-        // Friendly text for UI/audit (so we don't show "VisionMand" raw if we want to change it).
+        // Friendly text for UI/audit.
         public static string DisplayName(this UserRole role)
         {
             switch (role)
             {
-                case UserRole.Operator: return "Operatoer";
-                case UserRole.Tekniker: return "Tekniker";
-                case UserRole.VisionMand: return "Vision";
+                case UserRole.Operator: return "Operator";
+                case UserRole.Engineer: return "Engineer";
                 case UserRole.Admin: return "Admin";
                 default: return role.ToString();
             }

@@ -1,5 +1,4 @@
-
-
+// ===================== CameraViewModel.cs =====================
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System;
@@ -16,6 +15,10 @@ namespace SDK_GUI_Test1
     /// <summary>
     /// ONE camera. Its own VisionDeviceWrapper (one connection).
     /// AddOn controls (PropertyTolerance, PropertyBlock, ImageViewer) bind via endpoints.
+    ///
+    /// Login is GLOBAL via the shared AppSession (log in once -> applies to every
+    /// camera). This view model reads permissions from the session and refreshes
+    /// the UI whenever the logged-in user changes.
     ///
     /// Logging of parameter changes happens ONLY on trigger (DoTrigger): we compare
     /// the current gauge and blob values with the ones from the last trigger and log
@@ -37,17 +40,29 @@ namespace SDK_GUI_Test1
         private readonly int _port;
         private readonly DispatcherTimer _statusTimer;
 
-        public CameraViewModel(string title, string ip, int port, bool active = true)
+        // Shared application session.
+        // Used to share login between the pages
+        private readonly AppSession _session;
+
+        public CameraViewModel(AppSession session, string title, string ip, int port, bool active = true)
         {
+            _session = session;
             Title = title;
             _ip = ip;
             _port = port;
             IsActive = active;
 
-            if (!IsActive)
-                return;
+            // When the global user logs in/out, refresh all permission-bound UI.
+            if (_session != null)
+                _session.UserChanged += OnSessionUserChanged;
 
-            try
+            if (!IsActive)
+            {
+                LoginCommand = new RelayCommand(DoLogin);
+                return;
+            }
+
+            try // Trying to connect to the camera
             {
                 var info = new VisionDeviceInfo { IpAddress = _ip, SdkPort = _port };
                 Device = _manager.GetVisionDevice(info);
@@ -63,18 +78,22 @@ namespace SDK_GUI_Test1
 
                 ExternalTrigger = !ExternalTrigger;
 
-                // Baseline on connect (starting point for the first trigger comparison).
+                // Read the current parameter values right after connecting, and remember them
+                // as the starting point. The first trigger compares against these.
                 _lastGauge = ReadGauge(Device.VisionDevice);
                 _lastBlob = ReadBlob(Device.VisionDevice);
             }
             catch { /* shown as "Not connected" in the status */ }
 
+
+            // Create commands for the buttons from CameraPanel.xaml. 
             LoginCommand = new RelayCommand(DoLogin);
             SaveProgramCommand = new RelayCommand(DoSaveProgram);
             TriggerCommand = new RelayCommand(DoTrigger);
             OnlineCommand = new RelayCommand(() => SetOnline(true));
             OfflineCommand = new RelayCommand(() => SetOnline(false));
 
+            // Statustimer is used to refresh the values every second
             _statusTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _statusTimer.Tick += (s, e) => RefreshStatus();
             _statusTimer.Start();
@@ -82,7 +101,20 @@ namespace SDK_GUI_Test1
             RefreshStatus();
         }
 
-        // ===================== IDENTITY =====================
+        // Raise change notifications for everything tied to the logged-in user.
+        private void OnSessionUserChanged()
+        {
+            OnPropertyChanged(nameof(IsLoggedIn));
+            OnPropertyChanged(nameof(LoginButtonText));
+            OnPropertyChanged(nameof(CurrentUser));
+            OnPropertyChanged(nameof(CanOperate));
+            OnPropertyChanged(nameof(CanEditGauge));
+            OnPropertyChanged(nameof(CanEditBlob));
+            OnPropertyChanged(nameof(CanSaveProgram));
+            OnPropertyChanged(nameof(CanViewAudit));
+        }
+
+        // Camera Identity & Connection 
         public string Title { get; }
         public bool IsActive { get; }
 
@@ -104,7 +136,7 @@ namespace SDK_GUI_Test1
         // Called by the AddOn framework when a control value is changed by the user.
         // We re-evaluate the CURRENT image (do NOT take a new one) so pass/fail updates.
         // NO logging here - an adjustment without a trigger has no audit value.
-        public void Reprocess()
+        public void Reprocess() // Used to reprocess the image in task when values are changed (no need to do another trig)
         {
             try
             {
@@ -113,15 +145,15 @@ namespace SDK_GUI_Test1
 
                 dev.CallRunOnTask_Sync(VisionPort.CreateFromPath(VisionPorts.IMAGE_IN_TASK));
                 ExternalTrigger = !ExternalTrigger;
-                RefreshGauge(dev);
+                RefreshGaugeBlob(dev);
             }
             catch { }
         }
 
-        // ===================== PARAMETER SNAPSHOT (for trigger logging) =====================
+        // PARAMETER SNAPSHOT (for trigger logging)
         private class TolSnapshot
         {
-            public double Nominal;
+            public double Nominal; // Central value
             public double Minus;   // for range: Start
             public double Plus;    // for range: End
             public bool Valid;
@@ -130,7 +162,8 @@ namespace SDK_GUI_Test1
         private TolSnapshot _lastGauge;
         private TolSnapshot _lastBlob;
 
-        // Gauge: comes back as VisionTolerance (Nominal/Minus/Plus) - confirmed.
+        // Reads the gauge's tolerance from the camera and returns it as a snapshot,
+        // Gauge: comes back as VisionTolerance (Nominal/Minus/Plus).
         private TolSnapshot ReadGauge(dynamic dev)
         {
             if (dev == null) return null;
@@ -138,7 +171,7 @@ namespace SDK_GUI_Test1
             {
                 var tol = ReadValue<VisionTolerance>(
                     dev.GetTolerancePortValue_Sync(
-                        VisionPort.CreateFromPath(VisionPorts.GAUGE_TOLERANCE)));
+                        VisionPort.CreateFromPath(VisionPorts.GAUGE_TOLERANCE))); // Get Tolerance from camera - get answer as VisionTolerance
                 if (tol == null) return null;
                 return new TolSnapshot
                 {
@@ -151,9 +184,8 @@ namespace SDK_GUI_Test1
             catch { return null; }
         }
 
-        // Blob "Required Number Of Blobs" is a Range 1D - read with GetRange1DPortValue_Sync
-        // (NOT GetTolerancePortValue_Sync). The field names are StartValue/EndValue (confirmed),
-        // but we read defensively via reflection for robustness.
+        // Reads the blob tool's allowed min/max number of blobs from the camera and
+        // returns it as a snapshot, so a trigger can detect if the operator changed it.
         private TolSnapshot ReadBlob(dynamic dev)
         {
             if (dev == null) return null;
@@ -169,7 +201,7 @@ namespace SDK_GUI_Test1
 
                 return new TolSnapshot
                 {
-                    Minus = lo ?? 0,
+                    Minus = lo ?? 0, // Use lo or if null use 0
                     Plus = hi ?? 0,
                     Nominal = ((lo ?? 0) + (hi ?? 0)) / 2.0,
                     Valid = true
@@ -179,6 +211,7 @@ namespace SDK_GUI_Test1
         }
 
         // Gets the first property found among the given names, as a double.
+        // The method is used to find the values from the camera (e.g. blob min and max values)
         private double? GetFirstDoubleProp(object obj, params string[] names)
         {
             if (obj == null) return null;
@@ -216,7 +249,8 @@ namespace SDK_GUI_Test1
                                 newValue: newT.Plus.ToString("0.##"));
         }
 
-        // ===================== STATUS =====================
+        // STATUS GUI
+        // OnPropertyChanged updates the status
         private bool _isConnected;
         public bool IsConnected
         {
@@ -240,14 +274,14 @@ namespace SDK_GUI_Test1
             set => SetProperty(ref _hasUnsavedChanges, value);
         }
 
-        // ===================== GAUGE RESULT =====================
+        // RESULT from values
         private string _measuredValue = "N/A";
         public string MeasuredValue
         {
             get => _measuredValue;
             set => SetProperty(ref _measuredValue, value);
         }
-
+        // Gauge RESULT
         private bool _gaugePass;
         public bool GaugePass
         {
@@ -256,6 +290,8 @@ namespace SDK_GUI_Test1
         }
         public string GaugePassText => GaugePass ? "PASS" : "FAIL";
 
+
+        // BLOB RESULT
         private bool _blobPass;
         public bool BlobPass
         {
@@ -270,12 +306,16 @@ namespace SDK_GUI_Test1
             try { return (bool)op.IsSuccess; } catch { return false; }
         }
 
+        // Reading any value type (bool, int, double etc) from SDK
+        // Used to read values from the Camera
         private T ReadValue<T>(dynamic op)
         {
             if (op == null) return default(T);
             try { return (T)op.ReturnValue; } catch { return default(T); }
         }
 
+        // Refreshes the status 
+        // Merging csv files for the log
         private void RefreshStatus()
         {
             try
@@ -285,7 +325,7 @@ namespace SDK_GUI_Test1
                 IsOnline = IsConnected && ReadValue<bool>(dev.GetOnlineState_Sync());
 
                 if (IsConnected)
-                    RefreshGauge(dev);
+                    RefreshGaugeBlob(dev);
             }
             catch { IsConnected = false; IsOnline = false; }
 
@@ -293,7 +333,8 @@ namespace SDK_GUI_Test1
                 AuditLogger.MergePending();
         }
 
-        private void RefreshGauge(dynamic dev)
+        // Refresh gauge and blob values
+        private void RefreshGaugeBlob(dynamic dev)
         {
             if (dev == null) return;
             try
@@ -316,62 +357,50 @@ namespace SDK_GUI_Test1
         }
 
         // ===================== USER (login + permissions) =====================
-        // IUserService is the ONLY part that gets swapped out later (LocalUserService -> AD/MSAL).
-        // Everything below (permission checks, audit, UI blocking) stays unchanged.
-        private readonly IUserService _userService = new LocalUserService();
+        // All of this now reads from the shared AppSession so login is global.
 
-        private AuthenticatedUser _user;
-        public AuthenticatedUser User
-        {
-            get => _user;
-            set
-            {
-                SetProperty(ref _user, value);
-                OnPropertyChanged(nameof(IsLoggedIn));
-                OnPropertyChanged(nameof(LoginButtonText));
-                OnPropertyChanged(nameof(CurrentUser));
-                OnPropertyChanged(nameof(CanOperate));
-                OnPropertyChanged(nameof(CanEditGauge));
-                OnPropertyChanged(nameof(CanEditBlob));
-                OnPropertyChanged(nameof(CanSaveProgram));
-                OnPropertyChanged(nameof(CanViewAudit));
-            }
-        }
-
-        public bool IsLoggedIn => User != null;
-        public string LoginButtonText => IsLoggedIn ? "Log out" : "Log in";
-        public string CurrentUser => User?.Username ?? "";
+        public bool IsLoggedIn => _session?.IsLoggedIn ?? false;
+        public string LoginButtonText => _session?.LoginButtonText ?? "Log in";
+        public string CurrentUser => _session?.CurrentUser ?? "";
 
         // Permissions - the UI binds IsEnabled to these.
-        public bool CanOperate => User?.Has(Permission.CanOperate) ?? false;
-        public bool CanEditGauge => User?.Has(Permission.CanEditGauge) ?? false;
-        public bool CanEditBlob => User?.Has(Permission.CanEditBlob) ?? false;
-        public bool CanSaveProgram => User?.Has(Permission.CanSaveProgram) ?? false;
-        public bool CanViewAudit => User?.Has(Permission.CanViewAudit) ?? false;
+        public bool CanOperate => _session?.CanOperate ?? false;
+        public bool CanEditGauge => _session?.CanEditGauge ?? false;
+        public bool CanEditBlob => _session?.CanEditBlob ?? false;
+        public bool CanSaveProgram => _session?.CanSaveProgram ?? false;
+        public bool CanViewAudit => _session?.CanViewAudit ?? false;
 
         public RelayCommand LoginCommand { get; }
         public RelayCommand SaveProgramCommand { get; }
 
-        // Username + role for the audit log: e.g. "tekniker (Tekniker)", otherwise "unknown".
-        private string AuditUser => User?.AuditName ?? "unknown";
+        // Username + role for the audit log, from the shared session.
+        private string AuditUser => _session?.AuditUser ?? "unknown";
 
+        // The code behind login button. 
         private void DoLogin()
         {
-            if (IsLoggedIn)
+            if (_session == null) return;
+
+            if (_session.IsLoggedIn)
             {
                 AuditLogger.Log(AuditUser, "Login", "Log out", Title);
-                User = null;
+                _session.User = null;
                 return;
             }
 
-            var dlg = new LoginWindow(_userService) { Owner = Application.Current?.MainWindow };
+            // The app must be configured (AD details entered) before anyone can log in.
+            var userService = _session.CreateUserService();
+
+            var dlg = new LoginWindow(userService) { Owner = Application.Current?.MainWindow };
+
             if (dlg.ShowDialog() == true)
             {
-                User = dlg.AuthenticatedUser;
+                _session.User = dlg.AuthenticatedUser;
                 AuditLogger.Log(AuditUser, "Login", "Log in", Title);
             }
         }
 
+        // The code behind Save Program button
         private void DoSaveProgram()
         {
             if (!CanSaveProgram) { MessageBox.Show("You do not have permission to save the program."); return; }
@@ -381,7 +410,7 @@ namespace SDK_GUI_Test1
 
             try
             {
-                var op = dev.SaveProgram_Sync(VisionPort.CreateFromPath("Inspection"), 1);
+                var op = dev.SaveProgram_Sync(VisionPort.CreateFromPath("Inspection"), 1); // Saving to the camera
 
                 if (ReadSuccess(op))
                 {
@@ -408,6 +437,8 @@ namespace SDK_GUI_Test1
         public RelayCommand OnlineCommand { get; }
         public RelayCommand OfflineCommand { get; }
 
+        // Code behind Online button and Offline button
+        // Binding the buttons: true if you press online and false if you press offline
         private void SetOnline(bool online)
         {
             if (!CanOperate) { MessageBox.Show("You do not have permission to operate the camera."); return; }
@@ -437,6 +468,7 @@ namespace SDK_GUI_Test1
             }
         }
 
+        // Code behind Trigger button
         private void DoTrigger()
         {
             try
